@@ -24,7 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/table_meta.h"
 #include "storage/common/table.h"
 #include "storage/common/meta_util.h"
-
+#include "storage/default/disk_buffer_pool.h"
 
 Db::~Db() {
   for (auto &iter : opened_tables_) {
@@ -61,6 +61,7 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfo 
   std::string table_file_path = table_meta_file(path_.c_str(), table_name); // 文件路径可以移到Table模块
   Table *table = new Table();
   rc = table->create(table_file_path.c_str(), table_name, path_.c_str(), attribute_count, attributes);
+
   if (rc != RC::SUCCESS) {
     delete table;
     return rc;
@@ -70,7 +71,23 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfo 
   LOG_INFO("Create table success. table name=%s", table_name);
   return RC::SUCCESS;
 }
+RC Db::drop_table(const char *table_name){
+    RC rc=RC::SUCCESS;
+    if(opened_tables_.count(table_name)==0){
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    std::string table_file_path= table_meta_file(path_.c_str(),table_name);//要删除的元数据
+    std::string data_file = std::string(path_.c_str()) + "/" + table_name + TABLE_DATA_SUFFIX;//要删除的数据文件
 
+    if(remove(table_file_path.c_str())==-1){ //TODO 元数据文件打开怎么处理
+        return RC::IOERR_CLOSE;
+    }
+    Table * table= opened_tables_.find(table_name)->second;//TODO
+    opened_tables_.erase(table_name);
+    delete table;//delete 会closefile;
+    remove(data_file.c_str());//删除文件
+    return rc;
+}
 Table *Db::find_table(const char *table_name) const {
   std::unordered_map<std::string, Table *>::const_iterator iter = opened_tables_.find(table_name);
   if (iter != opened_tables_.end()) {

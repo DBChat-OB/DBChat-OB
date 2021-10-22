@@ -22,7 +22,9 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/field_meta.h"
 #include "storage/common/index_meta.h"
 #include "common/lang/serializable.h"
-
+/**
+ * 包含 域元数据和索引元数据
+ */
 class TableMeta : public common::Serializable {
 public:
   TableMeta() = default;

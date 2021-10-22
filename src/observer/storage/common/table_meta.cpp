@@ -76,7 +76,7 @@ RC TableMeta::init(const char *name, int field_num, const AttrInfo attributes[])
     fields_[i] = sys_fields_[i];
   }
 
-  int field_offset = sys_fields_.back().offset() + sys_fields_.back().len(); // 当前实现下，所有类型都是4字节对齐的，所以不再考虑字节对齐问题
+  int field_offset = sys_fields_.back().offset() + sys_fields_.back().len(); // TODO 当前实现下，所有类型都是4字节对齐的，所以不再考虑字节对齐问题
 
   for (int i = 0; i < field_num; i++) {
     const AttrInfo &attr_info = attributes[i];

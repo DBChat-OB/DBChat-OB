@@ -84,7 +84,7 @@ public:
   RC create_table(const char *dbname, const char *relation_name, int attribute_count, const AttrInfo *attributes);
 
   /**
-   * 销毁名为relName的表以及在该表上建立的所有索引
+   * 销毁名为relName的表以及在该表上建立的所有索引 TODO:删除索引
    * @param relName
    * @return
    */

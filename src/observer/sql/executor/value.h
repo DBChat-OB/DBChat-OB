@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include <ostream>
-
+//用来构成tuple的value
 class TupleValue {
 public:
   TupleValue() = default;

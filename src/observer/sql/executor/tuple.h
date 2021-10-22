@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/executor/value.h"
 
 class Table;
-
+//具体的一个元组，数组tuplevalue构成
 class Tuple {
 public:
   Tuple() = default;
@@ -59,7 +59,7 @@ public:
 private:
   std::vector<std::shared_ptr<TupleValue>>  values_;
 };
-
+//该类的数组构成tuple的模式
 class TupleField {
 public:
   TupleField(AttrType type, const char *table_name, const char *field_name) :
@@ -113,7 +113,7 @@ public:
 private:
   std::vector<TupleField> fields_;
 };
-
+//简单的tuple集合
 class TupleSet {
 public:
   TupleSet() = default;
@@ -150,7 +150,7 @@ private:
 class TupleRecordConverter {
 public:
   TupleRecordConverter(Table *table, TupleSet &tuple_set);
-
+//根据meta将record解析为tuple,并加入集合
   void add_record(const char *record);
 private:
   Table *table_;

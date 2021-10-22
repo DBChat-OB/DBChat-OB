@@ -171,7 +171,7 @@ enum RCNotice {
 enum RCAuth {
   USER = 1,
 };
-
+//基本的状态标志
 enum RC {
 
   SUCCESS = 0, /* Successful result */

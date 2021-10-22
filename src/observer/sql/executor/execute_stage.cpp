@@ -33,7 +33,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/condition_filter.h"
 #include "storage/trx/trx.h"
 
-using namespace common;
+using namespace common;//
 
 RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, const char *table_name, SelectExeNode &select_node);
 
@@ -127,7 +127,7 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
       exe_event->done_immediate();
     }
     break;
-
+    //这是和储存相关的event
     case SCF_INSERT:
     case SCF_UPDATE:
     case SCF_DELETE:

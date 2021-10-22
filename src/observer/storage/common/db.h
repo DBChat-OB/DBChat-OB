@@ -23,7 +23,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 
 class Table;
-
+//DB 类由多个table构成，能够查找创建table。TODO 或许可以在这里加一个函数
 class Db {
 public:
   Db() = default;
@@ -32,6 +32,7 @@ public:
   RC init(const char *name, const char *dbpath);
 
   RC create_table(const char *table_name, int attribute_count, const AttrInfo *attributes);
+  RC drop_table(const char *table_name);
 
   Table *find_table(const char *table_name) const;
 

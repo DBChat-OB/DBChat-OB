@@ -123,15 +123,29 @@ public:
 
   /**
    * 根据文件名打开一个分页文件，返回文件ID
+   * 文件已经open返回success
+   * 超过最大文件数返回BUFFERPOOL_OPEN_TOO_MANY_FILES
+   * 打开文件失败返回IOERR_ACCESS
+   * 无法分配内存返回NOMEM
+   * 无法分配block则
    * @return
    */
   RC open_file(const char *file_name, int *file_id);
 
   /**
    * 关闭fileID对应的分页文件
+   * invalid id返回BUFFERPOOL_ILLEGAL_FILE_ID
+   * 写会文件失败返回IOERR_SEEK或者IOERR_WRITE
+   * 关闭文件失败返回IOERR_CLOSE
    */
   RC close_file(int file_id);
-
+/**
+   * 关闭filename对应的分页文件;
+   * invalid id返回BUFFERPOOL_ILLEGAL_FILE_ID;
+   * 写会文件失败返回IOERR_SEEK或者IOERR_WRITE;
+   * 关闭文件失败返回IOERR_CLOSE;
+   */
+    RC close_file(const char *file_name);
   /**
    * 根据文件ID和页号获取指定页面到缓冲区，返回页面句柄指针。
    * @return
@@ -187,6 +201,7 @@ public:
   RC get_page_count(int file_id, int *page_count);
 
   RC flush_all_pages(int file_id);
+
 
 protected:
   RC allocate_block(Frame **buf);
