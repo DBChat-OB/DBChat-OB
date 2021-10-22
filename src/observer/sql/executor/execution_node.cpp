@@ -25,7 +25,7 @@ SelectExeNode::~SelectExeNode() {
   }
   condition_filters_.clear();
 }
-
+ 
 RC
 SelectExeNode::init(Trx *trx, Table *table, TupleSchema &&tuple_schema, std::vector<DefaultConditionFilter *> &&condition_filters) {
   trx_ = trx;

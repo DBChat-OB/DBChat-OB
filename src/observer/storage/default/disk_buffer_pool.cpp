@@ -173,7 +173,17 @@ RC DiskBufferPool::close_file(int file_id)
   LOG_INFO("Successfully close file %d:%s.", file_id, file_handle->file_name);
   return RC::SUCCESS;
 }
+RC DiskBufferPool::close_file(const char *file_name){
+    //查找id
+    for(int i=0;i<MAX_OPEN_FILE;i++){
+        if(open_list_[i]){
+            if(!strcmp(open_list_[i]->file_name,file_name)){
+                return close_file(i);
+            }
+        }
+    }
 
+}
 RC DiskBufferPool::get_this_page(int file_id, PageNum page_num, BPPageHandle *page_handle)
 {
   RC tmp;

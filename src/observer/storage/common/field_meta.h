@@ -23,7 +23,9 @@ See the Mulan PSL v2 for more details. */
 namespace Json {
 class Value;
 } // namespace Json
-
+/**
+ * 储存属性名，类型，偏移与长度
+ */
 class FieldMeta {
 public:
   FieldMeta();

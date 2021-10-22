@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 #include "storage/common/condition_filter.h"
 #include "sql/executor/tuple.h"
-
+//也就是说这里要写很多的执行节点
 class Table;
 class Trx;
 
