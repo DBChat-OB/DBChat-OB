@@ -146,7 +146,9 @@ private:
   std::vector<Tuple> tuples_;
   TupleSchema schema_;
 };
-
+/**
+ * 转换record存入set
+ */
 class TupleRecordConverter {
 public:
   TupleRecordConverter(Table *table, TupleSet &tuple_set);

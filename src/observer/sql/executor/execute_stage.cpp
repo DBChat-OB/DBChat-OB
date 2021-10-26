@@ -221,6 +221,28 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
   Session *session = session_event->get_client()->session;
   Trx *trx = session->current_trx();
   const Selects &selects = sql->sstr.selection;
+//  /**
+//   * 以下为多表连接
+//   * create by
+//   */
+//  //基本想法：构造select 添加连接属性
+//  int attr_num=selects.attr_num;//保留以前的值
+//  int idx=0;
+//  Selects &selects1=sql->sstr.selection;
+//  Condition conditions[20];//储存多表的联系条件
+//  //如果有多表的比较为select添加对应需要的元素 是否要保存这样的condition
+//  for(int i=selects1.condition_num-1;i>=0;i--){
+//      const Condition &condition = selects1.conditions[i];
+//      if(condition.left_is_attr == 1 && condition.right_is_attr == 1&&strcmp(condition.left_attr.relation_name, condition.right_attr.relation_name)!=0){//是属性但是表名不相同。
+//            conditions[idx++]=condition;//保留联系属性
+//            //不知道指针啥的行不行可以考虑动态，这里先直接赋值，经过测试不会出现t1.*的情况,在原属性表里查找
+//
+//
+//      }
+//  }
+//  /**
+//   *end
+//   */
   // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
   std::vector<SelectExeNode *> select_nodes;
   for (size_t i = 0; i < selects.relation_num; i++) {
@@ -296,7 +318,7 @@ static RC schema_add_field(Table *table, const char *field_name, TupleSchema &sc
   return RC::SUCCESS;
 }
 
-// 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
+// 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点，根据selects里的attr
 RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, const char *table_name, SelectExeNode &select_node) {
   // 列出跟这张表关联的Attr
   TupleSchema schema;
@@ -312,7 +334,7 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
       if (0 == strcmp("*", attr.attribute_name)) {
         // 列出这张表所有字段
         TupleSchema::from_table(table, schema);
-        break; // 没有校验，给出* 之后，再写字段的错误
+        break; // TODO 没有校验，给出* 之后，再写字段的错误
       } else {
         // 列出这张表相关字段
         RC rc = schema_add_field(table, attr.attribute_name, schema);
