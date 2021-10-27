@@ -96,6 +96,11 @@ void TupleSchema::append(const TupleSchema &other) {
     fields_.emplace_back(field);
   }
 }
+void TupleSchema::append_if_not_exists(const TupleSchema &other){
+    for(const auto & field:other.fields()){
+       add_if_not_exists(field.type(),field.table_name(),field.field_name());
+    }
+}
 
 int TupleSchema::index_of_field(const char *table_name, const char *field_name) const {
   const int size = fields_.size();

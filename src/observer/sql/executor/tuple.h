@@ -93,7 +93,8 @@ public:
   void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
   // void merge(const TupleSchema &other);
   void append(const TupleSchema &other);
-
+  //去重加入
+  void append_if_not_exists(const TupleSchema &other);
   const std::vector<TupleField> &fields() const {
     return fields_;
   }

@@ -374,6 +374,11 @@ select_attr:
 			relation_attr_init(&attr, $1, "*");
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
             	}
+            |STAR attr_list {
+                	RelAttr attr;
+                	relation_attr_init(&attr, NULL, "*");
+                	selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+                }
     ;
 attr_list:
     /* empty */
