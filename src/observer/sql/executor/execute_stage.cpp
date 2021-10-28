@@ -302,6 +302,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         return rc;
     }
     // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
+
     std::vector<SelectExeNode *> select_nodes;
     for (size_t i = 0; i <selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
@@ -354,22 +355,35 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         int count[size];
         int height = 0;
         memset(count, 0, size * sizeof(int));
-        std::stack<Tuple> stack;
-        while (count[0] < tuple_sets.at(0).size()) {
-            if (height != size - 1) {
-                stack.push(tuple_sets.at(height).get(count[height]));
+        std::vector<Tuple*> stack;
+        bool flag=true;
+        while (flag) {
+            if (height != size) {
+                stack.emplace_back(tuple_sets.at(height).get(count[height]));
                 count[height]++;
                 height++;
                 continue;
             }
-            if(height==size-1){
+            if(height==size){
                 //输出tuple 如果符合条件
                 Tuple tuple;
-                for(int i=0;i<=height;i++){
-
+                for(int i=0;i<height;i++){
+                    tuple.add(stack.at(i));
                 }
-            }
+                tupleSet.add(std::move(tuple));
+                stack.pop_back();
+                height--;
+                while (count[height]>=tuple_sets.at(height).size()){
+                    if(height==0){
+                        flag= false;
+                        break;
+                    }
+                    stack.pop_back();
+                    count[height]=0;
+                    height--;
+                }
 
+            }
 
         }
 
