@@ -23,6 +23,20 @@ See the Mulan PSL v2 for more details. */
 
 class Table;
 
+struct filter{
+int left_table;
+int left_value;
+int right_table;
+int right_value;
+CompOp op;
+bool is_same_type{true};
+};
+struct out_map{
+    int table;
+    int value;
+};
+
+
 //具体的一个元组，数组tuplevalue构成
 class Tuple {
 public:
@@ -39,7 +53,7 @@ public:
     void add(TupleValue *value);
     void add(Tuple *tuple);
 
-    void add(const std::shared_ptr<TupleValue> &other);
+    void add(std::vector<std::shared_ptr<TupleValue>> other);
 
     void add(int value);
 
@@ -103,7 +117,9 @@ public:
     ~TupleSchema() = default;
 
     void add(AttrType type, const char *table_name, const char *field_name);
-
+    int  get_field_size(){
+        return field_num;
+    }
     void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
 
     // void merge(const TupleSchema &other);
@@ -128,11 +144,14 @@ public:
 
     void print(std::ostream &os) const;
 
+    void printM(std::stringstream stringstream);
+
 public:
     static void from_table(const Table *table, TupleSchema &schema);
 
 private:
     std::vector<TupleField> fields_;
+    int field_num{0};
 };
 
 //简单的tuple集合

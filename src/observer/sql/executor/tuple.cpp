@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2021/5/14.
 //
 
+#include <sstream>
 #include "sql/executor/tuple.h"
 #include "storage/common/table.h"
 #include "common/log/log.h"
@@ -42,14 +43,16 @@ void Tuple::add(TupleValue *value) {
     values_.emplace_back(value);
 }
 
-void Tuple::add(const std::shared_ptr<TupleValue> &other) {
-    values_.emplace_back(other);
+void Tuple::add(std::vector<std::shared_ptr<TupleValue>> other) {
+    for(std::shared_ptr<TupleValue> value:other){
+        values_.emplace_back(value);
+    }
 }
 
 void Tuple::add(Tuple* tuple) {
     int size = tuple->values_.size();
     for (int i = 0; i < size; i++) {
-        add(tuple->values_.at(i));
+        add(reinterpret_cast<Tuple *>(&(tuple->values_.at(i))));
     }
 }
 
@@ -86,6 +89,7 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
 
 void TupleSchema::add(AttrType type, const char *table_name, const char *field_name) {
     fields_.emplace_back(type, table_name, field_name);
+    field_num++;
 }
 
 void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name) {
@@ -95,7 +99,6 @@ void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const
             return;
         }
     }
-
     add(type, table_name, field_name);
 }
 
@@ -104,6 +107,7 @@ void TupleSchema::append(const TupleSchema &other) {
     for (const auto &field: other.fields_) {
         fields_.emplace_back(field);
     }
+    field_num+=other.field_num;
 }
 
 void TupleSchema::append_if_not_exists(const TupleSchema &other) {
@@ -148,6 +152,8 @@ void TupleSchema::print(std::ostream &os) const {
     }
     os << fields_.back().field_name() << std::endl;
 }
+
+
 
 /////////////////////////////////////////////////////////////////////////////
 TupleSet::TupleSet(TupleSet &&other) : tuples_(std::move(other.tuples_)), schema_(other.schema_) {
