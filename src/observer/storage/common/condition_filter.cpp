@@ -114,7 +114,7 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition)
   //    // 不能比较的两个字段， 要把信息传给客户端
   //    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
   //  }
-  // NOTE：这里没有实现不同类型的数据比较，比如整数跟浮点数之间的对比
+  // TODO：这里没有实现不同类型的数据比较，比如整数跟浮点数之间的对比
   // 但是选手们还是要实现。这个功能在预选赛中会出现
   if (type_left != type_right) {
     return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -158,6 +158,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
       float right = *(float *)right_value;
       cmp_result = (int)(left - right);
     } break;
+    //TODO 日期的fliter
     default: {
     }
   }
