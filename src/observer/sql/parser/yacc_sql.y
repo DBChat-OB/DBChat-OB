@@ -95,6 +95,7 @@ ParserContext *get_context(yyscan_t scanner)
         ON
         LOAD
         DATA
+        DATE_T
         INFILE
         EQ
         LT
@@ -268,6 +269,7 @@ type:
 	INT_T { $$=INTS; }
        | STRING_T { $$=CHARS; }
        | FLOAT_T { $$=FLOATS; }
+       | DATE_T { $$=DATE; }
        ;
 ID_get:
 	ID 
