@@ -126,5 +126,35 @@ private:
     std::string value_;
 };
 
+class DateValue : public TupleValue {
+public:
+    explicit DateValue(unsigned int value) : value_(value) {
+    }
+    explicit DateValue(time_t value) {
+        this->value_ = value&&0x00000000ffffffff;
+    }
+    void to_string(std::ostream &os) const override {
+        time_t time = value_;
+        struct tm * timeinfo = localtime(&time);
+        char ret [20];
+        strftime(ret,20,"%Y-%m-%d",timeinfo);
+        os << ret;
+    }
+
+    int getIValue()  const override {
+        return value_;
+    }
+    float getFValue()  const override {
+        return float(value_);
+    }
+    int compare(const TupleValue &other) const override {
+
+        const DateValue &date_other = (const DateValue &) other;
+        return value_ - date_other.value_;
+    }
+
+private:
+    unsigned int value_;
+};
 
 #endif //__OBSERVER_SQL_EXECUTOR_VALUE_H_

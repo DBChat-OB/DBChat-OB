@@ -61,6 +61,10 @@ public:
 
     void add(const char *s, int len);
 
+    void add(unsigned int value);
+
+    void add(time_t value);
+
     const std::vector<std::shared_ptr<TupleValue>> &values() const {
         return values_;
     }

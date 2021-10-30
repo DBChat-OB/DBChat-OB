@@ -68,6 +68,14 @@ void Tuple::add(const char *s, int len) {
     add(new StringValue(s, len));
 }
 
+void Tuple::add(unsigned int value) {
+    add(new DateValue(value));
+}
+
+void Tuple::add(time_t value) {
+    add(new DateValue(value));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string TupleField::to_string() const {
@@ -268,6 +276,11 @@ void TupleRecordConverter::add_record(const char *record) {
             case CHARS: {
                 const char *s = record + field_meta->offset();  // 现在当做Cstring来处理
                 tuple.add(s, strlen(s));
+            }
+                break;
+            case DATE: {
+                unsigned int value = *(unsigned int *)(record + field_meta->offset());
+                tuple.add(value);
             }
                 break;
             default: {
