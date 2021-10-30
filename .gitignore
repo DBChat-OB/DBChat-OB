@@ -1,3 +1,9 @@
 .idea/
 cmake-build-debug-localubuntu/
 cmake-build-debug/
+
+# database storage files
+/miniob/db/sys/
+
+# log files
+observer.log.*
