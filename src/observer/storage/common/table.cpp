@@ -157,6 +157,7 @@ RC Table::open(const char *meta_file, const char *base_dir) {
 }
 
 RC Table::commit_insert(Trx *trx, const RID &rid) {
+    // 这个函数看起来没什么卵用，因为他没有访问任何私有成员 // 反转了，这是commit的时候逐个调用的
   Record record;
   RC rc = record_handler_->get_record(&rid, &record);
   if (rc != RC::SUCCESS) {
@@ -164,6 +165,14 @@ RC Table::commit_insert(Trx *trx, const RID &rid) {
   }
 
   return trx->commit_insert(this, record);
+}
+
+RC Table::commit_update(Trx *trx, const RID &rid) {
+    // TODO
+}
+
+RC Table::rollback_update(Trx *trx, const RID &rid) {
+    // TODO
 }
 
 RC Table::rollback_insert(Trx *trx, const RID &rid) {
@@ -535,10 +544,62 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   return rc;
 }
 
-RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num, const Condition conditions[], int *updated_count) {
-  return RC::GENERIC_ERROR;
+/**
+ * 更新记录回调函数的上下文，详见函数`accept_and_update`的说明。
+ */
+struct record_update_context {
+    /* 成功更新的记录的计数器 */
+    int counter;
+    /* 记录所在的表 */
+    Table &table;
+    /* update操作所在的事务 */
+    Trx *trx;
+    /* 待更新的列名 */
+    const char *col_name;
+    /* 更新的目标值 */
+    const Value *value;
+};
+
+/**
+ * update_record函数使用回调方式调用scan_record来遍历所有需要update的记录，
+ * 该函数即为scan_record对每个符合条件的记录所产生的回调。
+ * 每个需要update的记录会在这里被更新。
+ * @param record 待更新的记录。
+ * @param ctx 。非空。
+ * @return 状态码。
+ */
+RC Table::accept_and_update(Record *record, struct record_update_context *ctx) {
+    auto err = ctx->trx->update_record(&ctx->table, record);
+    if (err == RC::SUCCESS)  ++(ctx->counter);
+    return err;
 }
 
+RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num, const Condition conditions[], int *updated_count) {
+    // TODO
+    // 更新表
+    // 更新索引
+    // 更新缓存
+    CompositeConditionFilter filter{};
+    RC err;
+    struct record_update_context ctx{0,*this, trx, attribute_name, value};
+
+    if ((err = filter.init(*this, conditions, condition_num)) != RC::SUCCESS)
+        return err;
+    err = scan_record(
+            trx, &filter, -1, &ctx,
+            reinterpret_cast<RC (*)(Record *, void *)>(this->accept_and_update)
+    );
+    if (updated_count != nullptr)
+        *updated_count = ctx.counter;
+    return err;
+}
+
+/**
+ * 这玩意其实就是删除的时候计数用的上下文，不过写的很烂，
+ * 回调函数需要一个静态函数指针，他硬要用java的写法搞成对象，
+ * 然后用静态函数包装一下传进去，绝了。
+ * 那个包装函数是`record_reader_delete_adapter`。
+ */
 class RecordDeleter {
 public:
   RecordDeleter(Table &table, Trx *trx) : table_(table), trx_(trx) {
