@@ -39,6 +39,7 @@ void record_reader(const char *data, void *context) {
   TupleRecordConverter *converter = (TupleRecordConverter *)context;
   converter->add_record(data);
 }
+//是不是可以重写一下record_reader使其成为char或其他类型 直接在底层把数据排列好？？应该不行
 RC SelectExeNode::execute(TupleSet &tuple_set) {
   CompositeConditionFilter condition_filter;
   condition_filter.init((const ConditionFilter **)condition_filters_.data(), condition_filters_.size());
