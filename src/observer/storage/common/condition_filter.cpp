@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "record_manager.h"
 #include "common/log/log.h"
 #include "storage/common/table.h"
+#include "storage/common/mytime.cpp"
 
 using namespace common;
 
@@ -40,7 +41,7 @@ DefaultConditionFilter::~DefaultConditionFilter()
 
 RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op)
 {
-  if (attr_type < CHARS || attr_type > FLOATS) {
+  if (attr_type < CHARS || attr_type > DATE) {
     LOG_ERROR("Invalid condition with unsupported attribute type: %d", attr_type);
     return RC::INVALID_ARGUMENT;
   }
@@ -100,6 +101,16 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition)
     type_right = field_right->type();
 
     right.value = nullptr;
+    if(type_right==DATE&&!left.is_attr&&type_left==CHARS){
+        time_t time_value;
+        if(mytime::chars_to_date((char*)left.value,time_value)){
+            unsigned int time_int = time_value;
+            memcpy(left.value, &time_int, 4);
+        }
+        else{
+            return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+    }
   } else {
     right.is_attr = false;
     right.value = condition.right_value.data;
@@ -107,18 +118,29 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition)
 
     right.attr_length = 0;
     right.attr_offset = 0;
+    if(type_right==CHARS&&left.is_attr&&type_left==DATE) {
+        time_t time_value;
+        if(mytime::chars_to_date((char*)right.value,time_value)){
+            unsigned int time_int = time_value;
+            memcpy(right.value, &time_int, 4);
+            type_right = DATE;
+        }
+        else{
+            return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+    }
   }
 
   // 校验和转换
-  //  if (!field_type_compare_compatible_table[type_left][type_right]) {
-  //    // 不能比较的两个字段， 要把信息传给客户端
-  //    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-  //  }
+    if (!field_type_compare_compatible_table[type_left][type_right]) {
+      // 不能比较的两个字段， 要把信息传给客户端
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
   // TODO：这里没有实现不同类型的数据比较，比如整数跟浮点数之间的对比
   // 但是选手们还是要实现。这个功能在预选赛中会出现
-  if (type_left != type_right) {
-    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-  }
+//  if (type_left != type_right) {
+//    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+//  }
 
   return init(left, right, type_left, condition.comp);
 }
@@ -158,7 +180,11 @@ bool DefaultConditionFilter::filter(const Record &rec) const
       float right = *(float *)right_value;
       cmp_result = (int)(left - right);
     } break;
-    //TODO 日期的fliter
+    case DATE: {
+        unsigned int left = *(unsigned int *)left_value;
+        unsigned int right = *(unsigned int *)right_value;
+        cmp_result = (unsigned int)(left - right);
+    } break;
     default: {
     }
   }

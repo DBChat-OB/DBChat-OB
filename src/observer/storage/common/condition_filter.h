@@ -68,6 +68,13 @@ private:
   ConDesc  right_;
   AttrType attr_type_ = UNDEFINED;
   CompOp   comp_op_ = NO_OP;
+  bool     field_type_compare_compatible_table[5][5] = {
+          true, true, true, true, true,
+          true, true, false, false, false,
+          true, false, true, false, false,
+          true, false, false, true, true,
+          true, false, false, true, true
+  };
 };
 
 class CompositeConditionFilter : public ConditionFilter {
@@ -93,6 +100,13 @@ private:
   const ConditionFilter **      filters_ = nullptr;
   int                           filter_num_ = 0;
   bool                          memory_owner_ = false; // filters_的内存是否由自己来控制
+  bool     field_type_compare_compatible_table[5][5] = {
+            true, true, true, true, true,
+            true, true, false, false, false,
+            true, false, true, false, false,
+            true, false, false, true, true,
+            true, false, false, true, true
+    };
 };
 
 #endif // __OBSERVER_STORAGE_COMMON_CONDITION_FILTER_H_
