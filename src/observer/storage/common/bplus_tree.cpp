@@ -162,6 +162,7 @@ int CompareKey(const char *pdata, const char *pkey,AttrType attr_type,int attr_l
   int i1,i2;
   float f1,f2;
   const char *s1,*s2;
+  unsigned int u1,u2;
   switch(attr_type){
     case INTS: {
       i1 = *(int *) pdata;
@@ -185,6 +186,17 @@ int CompareKey(const char *pdata, const char *pkey,AttrType attr_type,int attr_l
       s2 = pkey;
       return strncmp(s1, s2, attr_length);
     }
+      break;
+    case DATE: {
+      u1 = *(unsigned int *) pdata;
+      u2 = *(unsigned int *) pkey;
+      if (u1 > u2)
+          return 1;
+      if (u1 < u2)
+          return -1;
+      if (u1 == u2)
+          return 0;
+      }
       break;
     default:{
       LOG_PANIC("Unknown attr type: %d", attr_type);
@@ -1803,6 +1815,7 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
   int i1=0,i2=0;
   float f1=0,f2=0;
   const char *s1=nullptr,*s2=nullptr;
+  unsigned int u1=0,u2=0;
 
   if(comp_op_ == NO_OP){
     return true;
@@ -1821,6 +1834,10 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
     case CHARS:
       s1=pkey;
       s2=value_;
+      break;
+      case DATE:
+      u1 = *(unsigned int*)pkey;
+      u2 = *(unsigned int*)value_;
       break;
     default:
       LOG_PANIC("Unknown attr type: %d", attr_type);
@@ -1841,6 +1858,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)==0);
           break;
+          case DATE:
+              flag=(u1==u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
@@ -1856,6 +1876,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)<0);
           break;
+          case DATE:
+              flag=(u1<u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
@@ -1871,6 +1894,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)>0);
           break;
+          case DATE:
+              flag=(u1>u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
@@ -1886,6 +1912,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)<=0);
           break;
+          case DATE:
+              flag=(u1<=u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
@@ -1901,6 +1930,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)>=0);
           break;
+          case DATE:
+              flag=(u1>=u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
@@ -1916,6 +1948,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
         case CHARS:
           flag=(strncmp(s1,s2,attr_length)!=0);
           break;
+          case DATE:
+              flag=(u1!=u2);
+              break;
         default:
           LOG_PANIC("Unknown attr type: %d", attr_type);
       }
