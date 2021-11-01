@@ -40,7 +40,7 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
                              SelectExeNode &select_node);
 
 static RC schema_add_field(Table *table, const char *field_name, TupleSchema &schema);
-RC create_out_map(TupleSchema &tupleSchema, TupleSchema *tupleSchemas,struct out_map *map,int relation_num,int size);
+
 RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,struct filter* filter,int &num);
 
 static RC schema_add_field_except_exist(Table *table, const char *field_name, TupleSchema &schema);
@@ -167,7 +167,6 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
             break;
         case SCF_BEGIN: {
             session_event->get_client()->session->set_trx_multi_operation_mode(true);
-            session_event->set_response(strrc(RC::SUCCESS));
             exe_event->done_immediate();
         }
             break;
@@ -421,22 +420,7 @@ RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSc
     }
     return RC::SUCCESS;
 }
-RC create_out_map(TupleSchema &tupleSchema, TupleSchema *tupleSchemas,struct out_map *map,int relation_num,int size){
-    int num=0;
 
-    for(int j=0;j<size;j++){
-        TupleField field=tupleSchema.field(j);
-        for(int i=0;i<relation_num;i++){
-            int id=tupleSchemas[i].index_of_field(field.table_name(),field.field_name());
-            if(id!=-1){
-                map[num].table=i;
-                map[num].value=id;
-                num++;
-                break;
-            }
-        }
-    }
-}
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
@@ -459,7 +443,18 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     //构造查询的内容到输出内容的映射
     int size=out_schema.get_field_size();
     struct out_map map[size];
-    create_out_map(out_schema,schemas,map,selects.relation_num,size);
+    for(int j=0;j<size;j++) {
+        TupleField field = out_schema.field(j);
+        for (int i = 0; i < selects.relation_num; i++) {
+            int id = schemas[i].index_of_field(field.table_name(), field.field_name());
+            if (id != -1) {
+                map[num].table = i;
+                map[num].value = id;
+                num++;
+                break;
+            }
+        }
+    }
     // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
 
     std::vector<SelectExeNode *> select_nodes;
