@@ -432,9 +432,9 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     const Selects &selects = sql->sstr.selection;
     TupleSchema out_schema;
     struct filter filters[20];
-    int num=0;//filters的个数
+    int filter_num=0;//filters的个数
     //构造最后的输出schema与各表查询的schema,以及构建表间的比较
-    if ((rc = create_out_schema(db, selects, out_schema, schemas,filters,num)) != RC::SUCCESS) {
+    if ((rc = create_out_schema(db, selects, out_schema, schemas,filters,filter_num)) != RC::SUCCESS) {
         const char *failure_ptr = "FAILURE\n";//这种地方复制有点冗余
         session_event->set_response(failure_ptr);
         end_trx_if_need(session, trx, false);
@@ -442,15 +442,16 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     }
     //构造查询的内容到输出内容的映射
     int size=out_schema.get_field_size();
+    int idx=0;
     struct out_map map[size];
     for(int j=0;j<size;j++) {
         TupleField field = out_schema.field(j);
         for (int i = 0; i < selects.relation_num; i++) {
             int id = schemas[i].index_of_field(field.table_name(), field.field_name());
             if (id != -1) {
-                map[num].table = i;
-                map[num].value = id;
-                num++;
+                map[idx].table = i;
+                map[idx].value = id;
+                idx++;
                 break;
             }
         }
@@ -520,7 +521,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             if(height==size){
                 //输出tuple 如果符合条件
                 Tuple tuple;//先进行判断再add
-                bool add= do_filter(&stack,filters,num);
+                bool add= do_filter(&stack,filters,filter_num);
                 if(add){//向输出里加入
                     std::vector<std::shared_ptr<TupleValue>> values;
                     for(int i=0;i<out_schema.fields().size();i++){
