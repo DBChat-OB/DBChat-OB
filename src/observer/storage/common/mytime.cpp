@@ -66,7 +66,7 @@ class mytime {
                     }
                 }
             }
-            time = mktime(timeinfo);
+            time = my_timegm(timeinfo);
             if(time==-1){
                 free(timeinfo);
                 return false;
@@ -74,4 +74,24 @@ class mytime {
             free(timeinfo);
             return true;
         }
+
+    private:
+    static time_t my_timegm(struct tm *tm)
+    {
+            // 用来将输入的时间转换为utc+0时区（通过将本地时间转换为utc时区）
+        time_t ret;
+        char *tz;
+
+        tz = getenv("TZ");
+        setenv("TZ", "", 1);
+        tzset();
+        ret = mktime(tm);
+        if (tz)
+            setenv("TZ", tz, 1);
+        else
+            unsetenv("TZ");
+        tzset();
+        return ret;
+    }
+
 };

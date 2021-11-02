@@ -135,9 +135,9 @@ public:
     }
     void to_string(std::ostream &os) const override {
         time_t time = value_;
-        struct tm * timeinfo = localtime(&time);
+        struct tm * timeinfo = gmtime(&time); //使用gmt时间
         char ret [20];
-        strftime(ret,20,"%Y-%m-%d",timeinfo);
+        strftime(ret,20,"%Y-%m-%d",timeinfo); //格式化输出时间
         os << ret;
     }
 
