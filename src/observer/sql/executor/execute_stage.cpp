@@ -442,16 +442,16 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     }
     //构造查询的内容到输出内容的映射
     int size=out_schema.get_field_size();
-    int idx=0;
+    int num=0;
     struct out_map map[size];
     for(int j=0;j<size;j++) {
         TupleField field = out_schema.field(j);
         for (int i = 0; i < selects.relation_num; i++) {
             int id = schemas[i].index_of_field(field.table_name(), field.field_name());
             if (id != -1) {
-                map[idx].table = i;
-                map[idx].value = id;
-                idx++;
+                map[num].table = i;
+                map[num].value = id;
+                num++;
                 break;
             }
         }
@@ -544,7 +544,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             }
         }
         //表的答应
-        tupleSet.print(ss);
+        tupleSet.print_with_table(ss);
     } else {
         // 当前只查询一张表，直接返回结果即可
         tuple_sets.front().print(ss);
