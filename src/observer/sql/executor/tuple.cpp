@@ -44,12 +44,12 @@ void Tuple::add(TupleValue *value) {
 }
 
 void Tuple::add(std::vector<std::shared_ptr<TupleValue>> other) {
-    for(std::shared_ptr<TupleValue> value:other){
+    for (std::shared_ptr<TupleValue> value: other) {
         values_.emplace_back(value);
     }
 }
 
-void Tuple::add(Tuple* tuple) {
+void Tuple::add(Tuple *tuple) {
     int size = tuple->values_.size();
     for (int i = 0; i < size; i++) {
         add(reinterpret_cast<Tuple *>(&(tuple->values_.at(i))));
@@ -115,7 +115,7 @@ void TupleSchema::append(const TupleSchema &other) {
     for (const auto &field: other.fields_) {
         fields_.emplace_back(field);
     }
-    field_num+=other.field_num;
+    field_num += other.field_num;
 }
 
 void TupleSchema::append_if_not_exists(const TupleSchema &other) {
@@ -133,6 +133,25 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name) 
         }
     }
     return -1;
+}
+
+void TupleSchema::print_with_table(std::ostream &os) const {
+    if (fields_.empty()) {
+        os << "No schema";
+        return;
+    }
+    for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
+         iter != end; ++iter) {
+
+        os << iter->table_name() << ".";
+
+        os << iter->field_name() << " | ";
+    }
+
+
+    os << fields_.back().table_name() << ".";
+
+    os << fields_.back().field_name() << std::endl;
 }
 
 void TupleSchema::print(std::ostream &os) const {
@@ -162,7 +181,6 @@ void TupleSchema::print(std::ostream &os) const {
 }
 
 
-
 /////////////////////////////////////////////////////////////////////////////
 TupleSet::TupleSet(TupleSet &&other) : tuples_(std::move(other.tuples_)), schema_(other.schema_) {
     other.schema_.clear();
@@ -187,10 +205,29 @@ void TupleSet::add(Tuple &&tuple) {
 }
 
 
-
 void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();
+}
+
+void TupleSet::print_with_table(std::ostream &os) const {
+    if (schema_.fields().empty()) {
+        LOG_WARN("Got empty schema");
+        return;
+    }
+
+    schema_.print_with_table(os);
+
+    for (const Tuple &item: tuples_) {
+        const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
+        for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
+             iter != end; ++iter) {
+            (*iter)->to_string(os);
+            os << " | ";
+        }
+        values.back()->to_string(os);
+        os << std::endl;
+    }
 }
 
 void TupleSet::print(std::ostream &os) const {
@@ -232,9 +269,11 @@ int TupleSet::size() const {
 const Tuple &TupleSet::get(int index) const {
     return tuples_[index];
 }
-Tuple* TupleSet::get(int index){
+
+Tuple *TupleSet::get(int index) {
     return &tuples_[index];
 }
+
 const std::string &TupleSet::getData(int index) const {
     return datas[index];
 }
@@ -256,7 +295,7 @@ void TupleRecordConverter::add_record(const char *record) {
     int length = 0;
 
 
-    int p=0;
+    int p = 0;
     for (const TupleField &field: schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
         assert(field_meta != nullptr);
@@ -279,7 +318,7 @@ void TupleRecordConverter::add_record(const char *record) {
             }
                 break;
             case DATE: {
-                unsigned int value = *(unsigned int *)(record + field_meta->offset());
+                unsigned int value = *(unsigned int *) (record + field_meta->offset());
                 tuple.add(value);
             }
                 break;
