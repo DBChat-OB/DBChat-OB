@@ -74,7 +74,7 @@ RC RecordPageHandler::init(DiskBufferPool &buffer_pool, int file_id, PageNum pag
     return RC::RECORD_OPENNED;
   }
 
-  RC ret = RC::SUCCESS;
+  RC ret;
   if ((ret = buffer_pool.get_this_page(file_id, page_num, &page_handle_)) != RC::SUCCESS) {
     LOG_ERROR("Failed to get page handle from disk buffer pool. ret=%d:%s", ret, strrc(ret));
     return ret;
@@ -176,6 +176,7 @@ RC RecordPageHandler::insert_record(const char *data, RID *rid) {
 RC RecordPageHandler::update_record(const Record *rec) {
   RC ret = RC::SUCCESS;
 
+  // 检查slot_num是否越界
   if (rec->rid.slot_num >= page_header_->record_capacity) {
     LOG_ERROR("Invalid slot_num %d, exceed page's record capacity, file_id:page_num %d:%d.",
               rec->rid.slot_num,
@@ -184,21 +185,24 @@ RC RecordPageHandler::update_record(const Record *rec) {
     return RC::INVALID_ARGUMENT;
   }
 
+  // bitmap[x] == 1 <=> 该页的第x个页框已被占用
   Bitmap bitmap(bitmap_, page_header_->record_capacity);
+  // 检查记录是否存在
   if (!bitmap.get_bit(rec->rid.slot_num)) {
     LOG_ERROR("Invalid slot_num %d, slot is empty, file_id:page_num %d:%d.",
               rec->rid.slot_num,
               file_id_,
               page_handle_.frame->page.page_num);
-    ret = RC::RECORD_RECORD_NOT_EXIST;
-  } else {
-    char *record_data = page_handle_.frame->page.data +
-        page_header_->first_record_offset + (rec->rid.slot_num * page_header_->record_size);
-    memcpy(record_data, rec->data, page_header_->record_real_size);
-    ret = disk_buffer_pool_->mark_dirty(&page_handle_);
-    if (ret != RC::SUCCESS) {
-      LOG_ERROR("Failed to mark page dirty. ret=%s", strrc(ret));
-    }
+    return RC::RECORD_RECORD_NOT_EXIST;
+  }
+
+  // 更新记录
+  char *record_data = page_handle_.frame->page.data +
+      page_header_->first_record_offset + (rec->rid.slot_num * page_header_->record_size);
+  memcpy(record_data, rec->data, page_header_->record_real_size);
+  ret = disk_buffer_pool_->mark_dirty(&page_handle_);
+  if (ret != RC::SUCCESS) {
+    LOG_ERROR("Failed to mark page dirty. ret=%s", strrc(ret));
   }
 
   LOG_TRACE("Update record. page num=%d,slot=%d", rec->rid.page_num, rec->rid.slot_num);
@@ -417,25 +421,23 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 }
 
 RC RecordFileHandler::update_record(const Record *rec) {
+  RC err;
 
-  RC ret = RC::SUCCESS;
-
-  RecordPageHandler page_handler;
-  if ((ret != page_handler.init(*disk_buffer_pool_, file_id_, rec->rid.page_num)) != RC::SUCCESS) {
-    LOG_ERROR("Failed to init record page handler.page number=%d, file_id=%d",
-              rec->rid.page_num, file_id_);
-    return ret;
+  if ((err = record_page_handler_.init(*disk_buffer_pool_, file_id_, rec->rid.page_num)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to init record page handler. page number=%d, file_id=%d. err: %d:%s",
+              rec->rid.page_num, file_id_, err, strrc(err));
+    return err;
   }
 
-  return page_handler.update_record(rec);
+  return record_page_handler_.update_record(rec);
 }
 
 RC RecordFileHandler::delete_record(const RID *rid) {
 
   RC ret = RC::SUCCESS;
   RecordPageHandler page_handler;
-  if ((ret != page_handler.init(*disk_buffer_pool_, file_id_, rid->page_num)) != RC::SUCCESS) {
-    LOG_ERROR("Failed to init record page handler.page number=%d, file_id:%d",
+  if ((ret = page_handler.init(*disk_buffer_pool_, file_id_, rid->page_num)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to init record page handler. page number=%d, file_id:%d",
               rid->page_num, file_id_);
     return ret;
   }
@@ -444,13 +446,13 @@ RC RecordFileHandler::delete_record(const RID *rid) {
 
 RC RecordFileHandler::get_record(const RID *rid, Record *rec) {
   //lock?
-  RC ret = RC::SUCCESS;
+  RC ret;
  if (nullptr == rid || nullptr == rec) {
     LOG_ERROR("Invalid rid %p or rec %p, one of them is null. ", rid, rec);
     return RC::INVALID_ARGUMENT;
   }
   RecordPageHandler page_handler;
-  if (ret != page_handler.init(*disk_buffer_pool_, file_id_, rid->page_num)) {
+  if ((ret = page_handler.init(*disk_buffer_pool_, file_id_, rid->page_num)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init record page handler.page number=%d, file_id:%d",
               rid->page_num, file_id_);
     return ret;
@@ -535,10 +537,12 @@ RC RecordFileScanner::get_next_record(Record *rec) {
     
     ret = record_page_handler_.get_next_record(&current_record);
     if (RC::SUCCESS == ret) {
+        // 当前页还有没读出来的记录
       if (condition_filter_ == nullptr || condition_filter_->filter(current_record)) {
         break; // got one
       }
     } else if (RC::RECORD_EOF == ret) {
+        // 当前页已读完，读下一页
       current_record.rid.page_num++;
       current_record.rid.slot_num = -1;
     } else {
