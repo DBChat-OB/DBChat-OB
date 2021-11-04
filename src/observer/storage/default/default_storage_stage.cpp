@@ -175,6 +175,7 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
       int updated_count = 0;
       rc = handler_->update_record(current_trx, current_db, table_name, field_name, &updates.value,
                                    updates.condition_num, updates.conditions, &updated_count);
+      LOG_INFO("Updated %d record(s).", updated_count);
       snprintf(response, sizeof(response), "%s\n", rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");
     }
     break;
@@ -265,7 +266,7 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
   session_event->set_response(response);
   event->done_immediate();
 
-  LOG_TRACE("Exit\n");
+            LOG_TRACE("Exit\n");
 }
 
 void DefaultStorageStage::callback_event(StageEvent *event,
