@@ -37,8 +37,6 @@ public:
 
     virtual float getFValue()const = 0;
 
-    virtual void  get_data(void * &ptr)const = 0;
-
 private:
 };
 
@@ -64,11 +62,6 @@ public:
 
 
     }
-
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
-    }
-
 
 private:
     int value_;
@@ -103,10 +96,6 @@ public:
         return 0;
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
-    }
-
 public:
     float value_;
 };
@@ -131,10 +120,6 @@ public:
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &) other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
-    }
-
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
     }
 
 private:
@@ -166,10 +151,6 @@ public:
 
         const DateValue &date_other = (const DateValue &) other;
         return value_ - date_other.value_;
-    }
-
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
     }
 
 private:
