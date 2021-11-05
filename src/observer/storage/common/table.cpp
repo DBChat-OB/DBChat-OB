@@ -625,9 +625,9 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
         //遍历要update的每一行，将每一行都转换成record之后插入
         int record_size = table_meta_.record_size();
         char *record_char = new char [record_size];
-        for (int i = 0; i < value_num; ++i) {
-            const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-            if (i==field_index) {
+        for (int j = 0; j < value_num; ++j) {
+            const FieldMeta *field = table_meta_.field(j + normal_field_start_index);
+            if (j==field_index) {
                 if(time_flag) {
                     memcpy(record_char + field->offset(), &time_int, field->len());
                 }
@@ -639,7 +639,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
             else{
                 //不是要更改的列，直接将原来的值复制
                 void * ptr;
-                (tuple_set.tuples().at(i)).get_pointer(i)->get_data(ptr);
+                (tuple_set.tuples().at(i)).get_pointer(j).get()->get_data(ptr);
                 memcpy(record_char + field->offset(), ptr, field->len());
             }
         }
