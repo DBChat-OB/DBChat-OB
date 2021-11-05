@@ -625,14 +625,15 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 break;
             } else{
                 if(attr.relation_name== nullptr){
-                    id=tuple_sets.at(j).get_schema().index_of_field(selects.relations[j],attr.attribute_name);
+                    id=out_schema.index_of_field(selects.relations[j],attr.attribute_name);
                 }
                 else{
-                    id=tuple_sets.at(j).get_schema().index_of_field(attr.relation_name,attr.attribute_name);
+                    id=out_schema.index_of_field(attr.relation_name,attr.attribute_name);
                 }
 
                 if(id!=-1){
                     cal_agg(tupleSet,id,attr.aggType,ss);
+                    break;
                 }
             }
         }
