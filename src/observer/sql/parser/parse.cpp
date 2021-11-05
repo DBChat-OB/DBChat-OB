@@ -28,9 +28,18 @@ void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const
   } else {
     relation_attr->relation_name = nullptr;
   }
+  relation_attr->aggType=Null;
   relation_attr->attribute_name = strdup(attribute_name);
 }
-
+void relation_agg_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name,AggType aggType){
+    if (relation_name != nullptr) {
+        relation_attr->relation_name = strdup(relation_name);
+    } else {
+        relation_attr->relation_name = nullptr;
+    }
+    relation_attr->attribute_name = strdup(attribute_name);
+    relation_attr->aggType=aggType;
+}
 void relation_attr_destroy(RelAttr *relation_attr) {
   free(relation_attr->relation_name);
   free(relation_attr->attribute_name);
