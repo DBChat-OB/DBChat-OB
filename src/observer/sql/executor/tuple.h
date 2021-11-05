@@ -148,7 +148,6 @@ public:
 
     void print(std::ostream &os) const;
     void print_with_table(std::ostream &os) const;
-    void printM(std::stringstream stringstream);
 
 public:
     static void from_table(const Table *table, TupleSchema &schema);
