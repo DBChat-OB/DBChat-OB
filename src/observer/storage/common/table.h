@@ -67,10 +67,8 @@ public:
 
 public:
   RC commit_insert(Trx *trx, const RID &rid);
-  RC commit_update(Trx *trx, const RID &rid);
   RC commit_delete(Trx *trx, const RID &rid);
   RC rollback_insert(Trx *trx, const RID &rid);
-  RC rollback_update(Trx *trx, const RID &rid);
   RC rollback_delete(Trx *trx, const RID &rid);
 
 private:
@@ -102,8 +100,6 @@ private:
   int                     file_id_;
   RecordFileHandler *     record_handler_;   /// 记录操作
   std::vector<Index *>    indexes_;
-
-  static RC accept_and_update(Record *record, struct record_update_context *ctx);
 };
 
 #endif // __OBSERVER_STORAGE_COMMON_TABLE_H__

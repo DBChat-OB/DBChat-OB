@@ -265,7 +265,7 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
   session_event->set_response(response);
   event->done_immediate();
 
-            LOG_TRACE("Exit\n");
+  LOG_TRACE("Exit\n");
 }
 
 void DefaultStorageStage::callback_event(StageEvent *event,
