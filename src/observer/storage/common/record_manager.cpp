@@ -499,11 +499,6 @@ RC RecordFileScanner::get_first_record(Record *rec) {
   return get_next_record(rec);
 }
 
-/**
- * 获取顺序的下一个记录。
- * @param rec 指向一个至少能存下一个Record对象的内存区域，不能为空，必须可写。
- * @return 状态码。
- */
 RC RecordFileScanner::get_next_record(Record *rec) {
   if (nullptr == disk_buffer_pool_) {
     LOG_ERROR("Scanner has been closed.");

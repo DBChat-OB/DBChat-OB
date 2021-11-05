@@ -225,7 +225,7 @@ RC Table::update_record(Trx *trx, Record *record) {
 
     // save old record data in case we need rollback
     Record record_old{};
-    bool rollback_record = false; // indicates if we need rollback or not
+    bool rollback_record = false;
     if ((ret = record_handler_->get_record(&record->rid, &record_old)) != RC::SUCCESS) {
         LOG_ERROR("Failed to read old record.");
         return ret;
@@ -335,29 +335,6 @@ struct record_update_context {
  * @return 状态码。
  */
 RC Table::accept_and_update(Record *record, struct record_update_context *ctx) {
-    // update record data
-    // find column offset and size, then copy data to the internal buffer
-    auto columns = ctx->table.table_meta();
-    int column_offset = -1;
-    int column_bytes = -1;
-    for (int i = 0; i < columns.field_num(); ++i) {
-        auto col = columns.field(i);
-        if (!strcmp(col->name(), ctx->col_name)) {
-            column_offset = col->offset();
-            column_bytes = col->len();
-            break;
-        }
-    }
-    if (column_offset < 0) {
-        // specified column does not exist
-        // TODO: user input should be checked before iterating over records
-        return RC::SCHEMA_FIELD_MISSING;
-    }
-    // copy column data
-    memcpy(record->data + column_offset, ctx->value->data, column_bytes);
-
-    // now the data is updated
-    // sync modified data to lower level and make the index consistent
     auto err = ctx->table.update_record(ctx->trx, record);
     // commented out because we add transaction entry in Table::update_record
 //    auto err = ctx->trx->update_record(&ctx->table, record);
