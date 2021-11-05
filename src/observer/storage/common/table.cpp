@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <limits.h>
 #include <string.h>
 #include <algorithm>
+#include <sql/executor/tuple.h>
 
 #include "storage/common/table.h"
 #include "storage/common/table_meta.h"
@@ -28,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/bplus_tree_index.h"
 #include "storage/trx/trx.h"
 #include "storage/common/mytime.cpp"
+
 
 Table::Table() :
     data_buffer_pool_(nullptr),
@@ -535,8 +537,118 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   return rc;
 }
 
+void record_reader_table(const char *data, void *context) {
+    TupleRecordConverter *converter = (TupleRecordConverter *)context;
+    converter->add_record(data);
+}
 RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num, const Condition conditions[], int *updated_count) {
-  return RC::GENERIC_ERROR;
+    //初始化返回状态
+    RC rc = RC::SUCCESS;
+    //初始化可能更新的日期
+    time_t time_value;
+    bool time_flag = false;
+    unsigned int time_int = 0;
+    //初始化表的schema
+    TupleSchema tuple_schema;
+    TupleSchema::from_table(this,tuple_schema);
+    int value_num = tuple_schema.get_field_size();
+    //查看要upset的列的列名是否在表的schema中,如过在得到下标，不在直接返回错误
+    int field_index = tuple_schema.index_of_field(name(),attribute_name);
+    if (field_index==-1)
+        return RC::SCHEMA_FIELD_NOT_EXIST;
+    //判断更新的数据类型和对应列的数据类型是否一致
+    TupleField tuple_field = tuple_schema.field(field_index);
+    if (tuple_field.type()!=value->type) {
+        if (!(value->type==CHARS&&tuple_field.type()==DATE)){
+            //如果不是用chars更新date就出错
+            rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
+            return rc;
+        }
+        else{
+            //确实是用chars更新date
+            time_flag = true;
+            //chars更新date要看日期是否合法。
+            if(mytime::chars_to_date((char*)value->data,time_value)){
+                //合法就保存time值
+                time_int = time_value;
+            }
+            else{
+                //不合法
+                rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
+                return rc;
+            }
+        }
+    }
+    //为每个比较的condition构建一个比较器filter
+    std::vector<DefaultConditionFilter *> condition_filters;
+    for (int i = 0; i < condition_num; i++) {
+        const Condition &condition = conditions[i];
+        if ((condition.left_is_attr == 0 && condition.right_is_attr == 0) || // 两边都是值
+            (condition.left_is_attr == 1 && condition.right_is_attr == 0) ||  // 左边是属性右边是值
+            (condition.left_is_attr == 0 && condition.right_is_attr == 1) ||  // 左边是值，右边是属性名
+            (condition.left_is_attr == 1 && condition.right_is_attr == 1) // 左右都是属性名，并且表名都符合
+                ) {
+            DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
+            rc = condition_filter->init(*this, condition);
+            if (rc != RC::SUCCESS) {
+                delete condition_filter;
+                for (DefaultConditionFilter *&filter: condition_filters) {
+                    delete filter;
+                }
+                return rc;
+            }
+            condition_filters.push_back(condition_filter);
+        }
+    }
+    //将多个比较器组合成为多值过滤比较器
+    CompositeConditionFilter condition_filter;
+    condition_filter.init((const ConditionFilter **)condition_filters.data(),condition_filters.size());
+    //初始化过滤出来的tupleSet
+    TupleSet tuple_set;
+    tuple_set.clear();
+    tuple_set.set_schema(tuple_schema);
+    TupleRecordConverter converter(this,tuple_set);
+    rc = scan_record(trx, &condition_filter, -1, (void *)&converter, record_reader_table);
+    if (rc!=RC::SUCCESS)
+        return rc;
+    //删除原来表中的所有满足条件的行
+    int delete_num;
+    delete_record(trx,&condition_filter,&delete_num);
+    //更改过滤出来的每个tuple的属性值,并且生成record的同时一条条插入table
+//    std::vector<Tuple> tuples;
+    int tuple_size = tuple_set.size();
+//    for(int i = 0 ;i <tuple_size;i ++) {
+//        tuples.push_back(tuple_set.tuples().at(i));
+//    }
+    const int normal_field_start_index = table_meta_.sys_field_num();
+    for (int i = 0; i<tuple_size; i++){
+        //遍历要update的每一行，将每一行都转换成record之后插入
+        int record_size = table_meta_.record_size();
+        char *record_char = new char [record_size];
+        for (int i = 0; i < value_num; ++i) {
+            const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+            if (i==field_index) {
+                if(time_flag) {
+                    memcpy(record_char + field->offset(), &time_int, field->len());
+                }
+                else {
+                    memcpy(record_char + field->offset(), value->data, field->len());
+                }
+                //要更改的列就将新值复制
+            }
+            else{
+                //不是要更改的列，直接将原来的值复制
+                void * ptr;
+                (tuple_set.tuples().at(i)).get_pointer(i)->get_data(ptr);
+                memcpy(record_char + field->offset(), ptr, field->len());
+            }
+        }
+        Record record;
+        record.data = record_char;
+        insert_record(trx,&record);
+        *updated_count++;
+    }
+    return rc;
 }
 
 class RecordDeleter {

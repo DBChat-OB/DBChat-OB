@@ -188,7 +188,6 @@ public:
     const std::string &getData(int index) const;
     Tuple* get(int index);
     const std::vector<Tuple> &tuples() const;
-
     void print(std::ostream &os) const;
     void print_with_table(std::ostream &os) const;
 
