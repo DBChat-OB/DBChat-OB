@@ -168,24 +168,7 @@ RC Table::commit_insert(Trx *trx, const RID &rid) {
 }
 
 RC Table::commit_update(Trx *trx, const RID &rid) {
-    RC rc = RC::SUCCESS;
-    Record record{};
-    rc = record_handler_->get_record(&rid, &record);
-    if (rc != RC::SUCCESS) {
-        return rc;
-    }
-//    rc = update_entry_of_indexes(record.data, record.rid, false);
-//    if (rc != RC::SUCCESS) {
-//        LOG_ERROR("Failed to delete indexes of record(rid=%d.%d). rc=%d:%s",
-//                  rid.page_num, rid.slot_num, rc, strrc(rc));// panic?
-//    }
-//
-//    rc = record_handler_->update_record(&record);
-//    if (rc != RC::SUCCESS) {
-//        return rc;
-//    }
-
-    return trx->commit_update(this, record);
+    // TODO
 }
 
 RC Table::rollback_update(Trx *trx, const RID &rid) {
@@ -209,59 +192,6 @@ RC Table::rollback_insert(Trx *trx, const RID &rid) {
     rc = record_handler_->delete_record(&rid);
   }
   return rc;
-}
-
-RC Table::update_record(Trx *trx, Record *record) {
-    RC ret;
-    if (trx != nullptr) {
-        trx->init_trx_info(this, *record);
-    }
-
-    // Save data by delegating to record file handler
-    if ((ret = record_handler_->update_record(record)) != RC::SUCCESS) {
-        LOG_ERROR("Update record failed. table: %s, ret: %d:%s", table_meta_.name(), ret, strrc(ret));
-        return ret;
-    }
-
-    // save old record data in case we need rollback
-    Record record_old{};
-    bool rollback_record = false;
-    if ((ret = record_handler_->get_record(&record->rid, &record_old)) != RC::SUCCESS) {
-        LOG_ERROR("Failed to read old record.");
-        return ret;
-    }
-
-    // add action entry into current transaction
-    if (trx != nullptr) {
-        if ((ret = trx->update_record(this, record)) != RC::SUCCESS) {
-            LOG_ERROR("Failed to add update action entry into transaction. table: %s, ret: %d:%s",
-                      table_meta_.name(), ret, strrc(ret));
-            // failed to update
-            // the record and transaction is not changed
-            // (assumed by the post-condition of routine trx::update_record)
-            return ret;
-        }
-    }
-
-    // update index
-    if ((ret = update_entry_of_indexes(record->data, record->rid, true)) != RC::SUCCESS) {
-        // we assume that if the index update operation fails, the index is kept intact
-        // thus we do not perform recovery for index update here
-        // from keuin: 我是仿照insert_record写的，傻逼玩意儿会不会写代码。不会写就别特么乱错误恢复，搞得代码逻辑混乱，真特么坑爹
-        LOG_ERROR("Failed to update record. Record will be rolled back. ret: %d:%s", ret, strrc(ret));
-        // the record data need to be rolled back
-        rollback_record = true;
-    }
-
-    // rollback record data if further action fails
-    if (rollback_record) {
-        if ((ret = record_handler_->update_record(&record_old)) != RC::SUCCESS) {
-            LOG_PANIC("Failed to rollback record data.");
-        }
-        return ret;
-    }
-
-    return RC::SUCCESS;
 }
 
 RC Table::insert_record(Trx *trx, Record *record) {
@@ -290,9 +220,6 @@ RC Table::insert_record(Trx *trx, Record *record) {
     }
   }
 
-  // 逻辑里掺杂着肮脏的错误恢复，看起来很牛逼，实则很傻逼
-  // 你恢复个几把呢，你🐎没穿复活甲挨了一刀，死了，还能复活么？
-  // 几把代码给👴气笑了，在体育学院学的计算机么？
   rc = insert_entry_of_indexes(record->data, record->rid);
   if (rc != RC::SUCCESS) {
     RC rc2 = delete_entry_of_indexes(record->data, record->rid, true);
@@ -309,39 +236,6 @@ RC Table::insert_record(Trx *trx, Record *record) {
   }
   return rc;
 }
-
-/**
- * 更新记录回调函数的上下文，详见函数`accept_and_update`的说明。
- */
-struct record_update_context {
-    /* 成功更新的记录的计数器 */
-    int counter;
-    /* 记录所在的表 */
-    Table &table;
-    /* update操作所在的事务 */
-    Trx *trx;
-    /* 待更新的列名 */
-    const char *col_name;
-    /* 更新的目标值 */
-    const Value *value;
-};
-
-/**
- * update_record函数使用回调方式调用scan_record来遍历所有需要update的记录，
- * 该函数即为scan_record对每个符合条件的记录所产生的回调。
- * 每个需要update的记录会在这里被更新。
- * @param record 待更新的记录。
- * @param ctx 。非空。
- * @return 状态码。
- */
-RC Table::accept_and_update(Record *record, struct record_update_context *ctx) {
-    auto err = ctx->table.update_record(ctx->trx, record);
-    // commented out because we add transaction entry in Table::update_record
-//    auto err = ctx->trx->update_record(&ctx->table, record);
-    if (err == RC::SUCCESS)  ++(ctx->counter);
-    return err;
-}
-
 RC Table::insert_record(Trx *trx, int value_num, const Value *values) {
   if (value_num <= 0 || nullptr == values ) {
     LOG_ERROR("Invalid argument. value num=%d, values=%p", value_num, values);
@@ -361,26 +255,6 @@ RC Table::insert_record(Trx *trx, int value_num, const Value *values) {
   rc = insert_record(trx, &record);
   delete[] record_data;
   return rc;
-}
-
-RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num, const Condition conditions[], int *updated_count) {
-    // TODO
-    // 更新表
-    // 更新索引
-    // 更新缓存
-    CompositeConditionFilter filter{};
-    RC err;
-    struct record_update_context ctx{0,*this, trx, attribute_name, value};
-
-    if ((err = filter.init(*this, conditions, condition_num)) != RC::SUCCESS)
-        return err;
-    err = scan_record(
-            trx, &filter, -1, &ctx,
-            reinterpret_cast<RC (*)(Record *, void *)>(this->accept_and_update)
-            );
-    if (updated_count != nullptr)
-        *updated_count = ctx.counter;
-    return err;
 }
 
 const char *Table::name() const {
@@ -504,11 +378,8 @@ RC Table::scan_record(Trx *trx, ConditionFilter *filter, int limit, void *contex
 
   IndexScanner *index_scanner = find_index_for_scan(filter);
   if (index_scanner != nullptr) {
-      // 用索引进行扫描
     return scan_record_by_index(trx, index_scanner, filter, limit, context, record_reader);
   }
-
-  // 没有合适的索引，用一趟扫描算法进行扫描
 
   RC rc = RC::SUCCESS;
   RecordFileScanner scanner;
@@ -674,6 +545,56 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
 }
 
 /**
+ * 更新记录回调函数的上下文，详见函数`accept_and_update`的说明。
+ */
+struct record_update_context {
+    /* 成功更新的记录的计数器 */
+    int counter;
+    /* 记录所在的表 */
+    Table &table;
+    /* update操作所在的事务 */
+    Trx *trx;
+    /* 待更新的列名 */
+    const char *col_name;
+    /* 更新的目标值 */
+    const Value *value;
+};
+
+/**
+ * update_record函数使用回调方式调用scan_record来遍历所有需要update的记录，
+ * 该函数即为scan_record对每个符合条件的记录所产生的回调。
+ * 每个需要update的记录会在这里被更新。
+ * @param record 待更新的记录。
+ * @param ctx 。非空。
+ * @return 状态码。
+ */
+RC Table::accept_and_update(Record *record, struct record_update_context *ctx) {
+    auto err = ctx->trx->update_record(&ctx->table, record);
+    if (err == RC::SUCCESS)  ++(ctx->counter);
+    return err;
+}
+
+RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num, const Condition conditions[], int *updated_count) {
+    // TODO
+    // 更新表
+    // 更新索引
+    // 更新缓存
+    CompositeConditionFilter filter{};
+    RC err;
+    struct record_update_context ctx{0,*this, trx, attribute_name, value};
+
+    if ((err = filter.init(*this, conditions, condition_num)) != RC::SUCCESS)
+        return err;
+    err = scan_record(
+            trx, &filter, -1, &ctx,
+            reinterpret_cast<RC (*)(Record *, void *)>(this->accept_and_update)
+    );
+    if (updated_count != nullptr)
+        *updated_count = ctx.counter;
+    return err;
+}
+
+/**
  * 这玩意其实就是删除的时候计数用的上下文，不过写的很烂，
  * 回调函数需要一个静态函数指针，他硬要用java的写法搞成对象，
  * 然后用静态函数包装一下传进去，绝了。
@@ -774,13 +695,6 @@ RC Table::insert_entry_of_indexes(const char *record, const RID &rid) {
     }
   }
   return rc;
-}
-
-RC Table::update_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists) {
-    RC rc = RC::SUCCESS;
-    // TODO
-    LOG_WARN("TODO: index is not updated. Please implement Table::update_entry_of_indexes");
-    return rc;
 }
 
 RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists) {

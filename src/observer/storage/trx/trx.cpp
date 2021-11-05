@@ -251,11 +251,6 @@ RC Trx::commit_insert(Table *table, Record &record) {
   return RC::SUCCESS;
 }
 
-RC Trx::commit_update(Table *table, Record &record) {
-    set_record_trx_id(table, record, 0, false);
-    return RC::SUCCESS;
-}
-
 RC Trx::rollback_delete(Table *table, Record &record) {
   set_record_trx_id(table, record, 0, false);
   return RC::SUCCESS;
