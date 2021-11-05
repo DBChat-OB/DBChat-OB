@@ -38,6 +38,8 @@ using namespace common;//
 //函数声明
 RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, const char *table_name,
                              SelectExeNode &select_node);
+void cal_agg(TupleSet &tupleSet,int id,AggType aggType,std::ostream &os);
+RC do_agg_select(const char *db, Query *sql, SessionEvent *session_event);
 
 static RC schema_add_field(Table *table, const char *field_name, TupleSchema &schema);
 
@@ -117,7 +119,26 @@ void ExecuteStage::callback_event(StageEvent *event, CallbackContext *context) {
     LOG_TRACE("Exit\n");
     return;
 }
-
+void out_agg_type(AggType aggType,std::ostream &ss){
+    switch (aggType) {
+        case Max:{
+            ss<<"max";
+        }
+            break;
+        case Min:{
+            ss<<"min";
+        }
+            break;
+        case Count:{
+            ss<<"count";
+        }
+            break;
+        case Avg:{
+            ss<<"avg";
+        }
+            break;
+    }
+}
 void ExecuteStage::handle_request(common::StageEvent *event) {
     ExecutionPlanEvent *exe_event = static_cast<ExecutionPlanEvent *>(event);
     SessionEvent *session_event = exe_event->sql_event()->session_event();
@@ -430,6 +451,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Trx *trx = session->current_trx();
     TupleSchema schemas[sql->sstr.selection.relation_num];//每个表的模式
     const Selects &selects = sql->sstr.selection;
+
     TupleSchema out_schema;
     struct filter filters[20];
     int filter_num=0;//filters的个数
@@ -543,13 +565,87 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 }
             }
         }
-        //表的答应
-        tupleSet.print_with_table(ss);
+
     } else {
         // 当前只查询一张表，直接返回结果即可
-        tuple_sets.front().print(ss);
-    }
 
+    }
+    //处理聚合查询的输出
+    if(selects.attributes[0].aggType!=Null){//TODO 这个地方可能在分组时出错
+        //表头输出
+        for(int i=0;i< selects.attr_num-1;i++){
+            out_agg_type(selects.attributes[i].aggType,ss);
+            ss<<"(";
+            if(selects.attributes[i].relation_name!= nullptr){
+                ss<<selects.attributes[i].relation_name<<".";
+            }
+            ss<<selects.attributes[i].attribute_name<<")"<<" | ";
+        }
+        out_agg_type(selects.attributes[selects.attr_num-1].aggType,ss);
+        ss<<"(";
+        if(selects.attributes[selects.attr_num-1].relation_name!= nullptr){
+            ss<<selects.attributes[selects.attr_num-1].relation_name<<".";
+        }
+        ss<<selects.attributes[selects.attr_num-1].attribute_name<<")"<< std::endl;
+        //没有元组直接返回
+        if(tupleSet.size()==0){
+            return RC::SUCCESS;
+        }
+        for(int i=0;i<selects.attr_num-1;i++){
+            RelAttr attr=selects.attributes[i];
+            for(int j=0;j<tuple_sets.size();j++){
+                int id;
+                if(strcmp(attr.attribute_name,"*")==0){
+                    cal_agg(tupleSet,-1,attr.aggType,ss);
+                    break;
+                }
+                else{
+                    if(attr.relation_name== nullptr){//如果是*怎么办
+                        id=out_schema.index_of_field(selects.relations[j],attr.attribute_name);
+                    }
+                    else{
+                        id=out_schema.index_of_field(attr.relation_name,attr.attribute_name);
+                    }
+
+                    if(id!=-1){
+                        cal_agg(tupleSet,id,attr.aggType,ss);
+                        break;
+                    }
+                }
+
+            }
+            ss<<" | ";
+        }
+        //输出最后一个
+        RelAttr attr=selects.attributes[selects.attr_num-1];
+        for(int j=0;j<tuple_sets.size();j++){
+            int id;
+            if(strcmp(attr.attribute_name,"*")==0){
+                cal_agg(tupleSet,-1,attr.aggType,ss);
+                break;
+            } else{
+                if(attr.relation_name== nullptr){
+                    id=tuple_sets.at(j).get_schema().index_of_field(selects.relations[j],attr.attribute_name);
+                }
+                else{
+                    id=tuple_sets.at(j).get_schema().index_of_field(attr.relation_name,attr.attribute_name);
+                }
+
+                if(id!=-1){
+                    cal_agg(tupleSet,id,attr.aggType,ss);
+                }
+            }
+        }
+        ss<<std::endl;
+    }
+    else{
+        if(tuple_sets.size()>1){
+            //表的打印
+            tupleSet.print_with_table(ss);
+        } else{
+            tuple_sets.front().print(ss);
+        }
+    }
     for (SelectExeNode *&tmp_node: select_nodes) {
         delete tmp_node;
     }
@@ -681,4 +777,68 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
     }
 
     return select_node.init(trx, table, std::move(tupleSchema), std::move(condition_filters));
+}
+/**
+ * 只是把一个值输出出来
+ * @param tupleSet
+ * @param id
+ * @param aggType
+ * @param os
+ */
+void cal_agg(TupleSet &tupleSet,int id,AggType aggType,std::ostream &os){
+    if(tupleSet.size()==0){
+        return;
+    }
+    switch (aggType) {
+        case Max:{
+            if(tupleSet.size()==0){
+                return;
+            }
+            int max=0;
+            for(int i=0;i<tupleSet.size();i++){
+                if(tupleSet.get(i)->get(id).compare(tupleSet.get(max)->get(id))>0){
+                    max=i;
+                }
+            }
+            //打印值
+            tupleSet.get(max)->get(id).to_string(os);
+        }
+            break;
+        case Min:{
+            if(tupleSet.size()==0){
+                return;
+            }
+            int min=0;
+            for(int i=0;i<tupleSet.size();i++){
+                if(tupleSet.get(i)->get(id).compare(tupleSet.get(min)->get(id))<0){
+                    min=i;
+                }
+            }
+            //打印值
+            tupleSet.get(min)->get(id).to_string(os);
+        }
+            break;
+        case Count:{
+            os<<tupleSet.size();
+        }
+            break;
+        case Avg:{//这个只在int float中出现
+            if(tupleSet.get_schema().field(id).type()==FLOATS){
+                float ret=0;
+                int size=tupleSet.size();
+                for(int i=0;i<tupleSet.size();i++){
+                    ret+=((const FloatValue&)tupleSet.get(i)->get(id)).getFValue()/size;
+                }
+                os<<ret;
+            } else if(tupleSet.get_schema().field(id).type()==INTS){
+                float ret=0;
+                int size=tupleSet.size();
+                for(int i=0;i<tupleSet.size();i++){
+                    ret+=((const IntValue&)tupleSet.get(i)->get(id)).getIValue()*1.0/size;
+                }
+                os<<ret;
+            }
+            break;
+        }
+    }
 }

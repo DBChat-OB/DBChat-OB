@@ -274,9 +274,7 @@ Tuple *TupleSet::get(int index) {
     return &tuples_[index];
 }
 
-const std::string &TupleSet::getData(int index) const {
-    return datas[index];
-}
+
 
 const std::vector<Tuple> &TupleSet::tuples() const {
     return tuples_;
