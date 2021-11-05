@@ -67,33 +67,13 @@ RC Trx::insert_record(Table *table, Record *record) {
   return rc;
 }
 
-RC Trx::update_record(Table *table, Record *record) {
-    start_if_not_started(); // 既然他们都调了，看起来我也得调一下，虽然我不知道这是干啥用的
-    auto *op = this->find_operation(table, record->rid);
-    if (op != nullptr) {
-        if (op->type() == Operation::Type::UPDATE) {
-            delete_operation(table, record->rid);
-//            return RC::SUCCESS; // 需要把当前操作添加进去，所以这里先不返回
-        } else {
-            return RC::GENERIC_ERROR;
-        }
-    }
-    set_record_trx_id(table, *record, trx_id_, false); // deleted 我也不知道是啥意思，先设置成false试试
-    insert_operation(table, Operation::Type::UPDATE, record->rid);
-    return RC::SUCCESS;
-}
-
 RC Trx::delete_record(Table *table, Record *record) {
   RC rc = RC::SUCCESS;
   start_if_not_started();
   Operation *old_oper = find_operation(table, record->rid);
   if (old_oper != nullptr) {
     if (old_oper->type() == Operation::Type::INSERT) {
-        // 前一个update被覆盖了，无需再执行，直接删掉（应该）就可以
-        // 反转了，万一前一个update没有被现在这个update完全覆盖呢
-        // 暂时先不加
-        // TODO 继续研究一下
-//      delete_operation(table, record->rid);
+      delete_operation(table, record->rid);
       return RC::SUCCESS;
     } else {
       return RC::GENERIC_ERROR;
@@ -172,15 +152,6 @@ RC Trx::commit() {
           }
         }
         break;
-          case Operation::Type::UPDATE: {
-              rc = table->commit_update(this, rid);
-              if (rc != RC::SUCCESS) {
-                  // handle rc
-                  LOG_ERROR("Failed to commit update operation. rid=%d.%d, rc=%d:%s",
-                            rid.page_num, rid.slot_num, rc, strrc(rc));
-              }
-          }
-          break;
         case Operation::Type::DELETE: {
           rc = table->commit_delete(this, rid);
           if (rc != RC::SUCCESS) {
@@ -249,11 +220,6 @@ RC Trx::rollback() {
 RC Trx::commit_insert(Table *table, Record &record) {
   set_record_trx_id(table, record, 0, false);
   return RC::SUCCESS;
-}
-
-RC Trx::commit_update(Table *table, Record &record) {
-    set_record_trx_id(table, record, 0, false);
-    return RC::SUCCESS;
 }
 
 RC Trx::rollback_delete(Table *table, Record &record) {

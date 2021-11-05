@@ -67,10 +67,8 @@ public:
 
 public:
   RC commit_insert(Trx *trx, const RID &rid);
-  RC commit_update(Trx *trx, const RID &rid);
   RC commit_delete(Trx *trx, const RID &rid);
   RC rollback_insert(Trx *trx, const RID &rid);
-  RC rollback_update(Trx *trx, const RID &rid);
   RC rollback_delete(Trx *trx, const RID &rid);
 
 private:
@@ -80,7 +78,6 @@ private:
   IndexScanner *find_index_for_scan(const DefaultConditionFilter &filter);
 
   RC insert_record(Trx *trx, Record *record);
-  RC update_record(Trx *trx, Record *record);
   RC delete_record(Trx *trx, Record *record);
 
 private:
@@ -88,7 +85,6 @@ private:
   friend class RecordDeleter;
 
   RC insert_entry_of_indexes(const char *record, const RID &rid);
-  RC update_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists);
   RC delete_entry_of_indexes(const char *record, const RID &rid, bool error_on_not_exists);
 private:
   RC init_record_handler(const char *base_dir);
@@ -104,8 +100,6 @@ private:
   int                     file_id_;
   RecordFileHandler *     record_handler_;   /// 记录操作
   std::vector<Index *>    indexes_;
-
-  static RC accept_and_update(Record *record, struct record_update_context *ctx);
 };
 
 #endif // __OBSERVER_STORAGE_COMMON_TABLE_H__
