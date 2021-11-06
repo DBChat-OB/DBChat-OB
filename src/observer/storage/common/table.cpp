@@ -638,10 +638,6 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
             }
             else{
                 //不是要更改的列，直接将原来的值复制
-                if(field->type()==CHARS) {
-                    LOG_PANIC("here");
-                }
-
                 void * ptr;
                 (tuple_set.tuples().at(i)).get_pointer(j).get()->get_data(ptr);
                 memcpy(record_char + field->offset(), ptr, field->len());
