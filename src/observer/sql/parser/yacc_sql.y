@@ -107,6 +107,8 @@ ParserContext *get_context(yyscan_t scanner)
         MIN
         COUNT
         AVG
+        ORDER
+        BY
 
 %union {
   struct _Attr *attr;
@@ -160,6 +162,8 @@ command:
 	| agg_attrs
 	| AGG
 	| AGG_list
+	| orders
+	| order_list
     ;
 
 exit:			
@@ -344,7 +348,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where SEMICOLON
+    SELECT select_attr FROM ID rel_list where orders SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -385,6 +389,30 @@ AGG_list:
     | COMMA AGG AGG_list{
 
     };
+orders:
+/* empty */
+| ORDER BY ID order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+}
+| ORDER BY ID DOT ID order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+};
+order_list:
+ /* empty */
+ |COMMA ID order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $2);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+ }
+ |COMMA ID DOT ID order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $2, $4);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+ };
 AGG:
     MAX LBRACE ID DOT ID RBRACE{
 	RelAttr attr;

@@ -73,6 +73,8 @@ typedef struct {
     char *relations[MAX_NUM];     // relations in From clause
     size_t condition_num;          // Length of conditions in Where clause
     Condition conditions[MAX_NUM];    // conditions in Where clause
+    size_t order_num;
+    RelAttr orders[MAX_NUM]; // 排序的属性
 } Selects;
 
 // struct of insert

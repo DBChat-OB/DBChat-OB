@@ -17,12 +17,13 @@ See the Mulan PSL v2 for more details. */
 
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 #include "sql/parser/parse.h"
 #include "sql/executor/value.h"
 
 class Table;
-
+static std::vector<int> orders;
 struct filter{
 int left_table;
 int left_value;
@@ -64,7 +65,28 @@ public:
     void add(unsigned int value);
 
     void add(time_t value);
-
+    bool operator==(Tuple & other){
+        for(int i=0;i<orders.size();i++){
+            if(!values_.at(orders[i])->compare(other.get(orders[i]))){
+                return false;
+            }
+        }
+        return true;
+    }
+    bool operator<(Tuple &other){
+        for(int i=0;i<orders.size();i++){
+            int ret=values_.at(orders[i])->compare(other.get(orders[i]));
+            if(ret<0){
+                return true;
+            } else if(ret==0){
+                continue;
+            }
+            else{
+                return false;
+            }
+        }
+        return true;
+    }
     const std::vector<std::shared_ptr<TupleValue>> &values() const {
         return values_;
     }
@@ -80,7 +102,9 @@ public:
     const std::shared_ptr<TupleValue> &get_pointer(int index) const {
         return values_[index];
     }
-
+    static void append_order_attr(int id){
+        orders.push_back(id);
+    }
 private:
     std::vector<std::shared_ptr<TupleValue>> values_;
 
@@ -145,7 +169,6 @@ public:
     void clear() {
         fields_.clear();
     }
-
     void print(std::ostream &os) const;
     void print_with_table(std::ostream &os) const;
 
@@ -189,6 +212,9 @@ public:
     const std::vector<Tuple> &tuples() const;
     void print(std::ostream &os) const;
     void print_with_table(std::ostream &os) const;
+    void sort(){
+        std::sort(tuples_.begin(),tuples_.end());
+    }
 
 public:
     const TupleSchema &schema() const {
@@ -197,7 +223,6 @@ public:
 
 private:
     std::vector<Tuple> tuples_;
-    std::vector<char*> datas;
     TupleSchema schema_;
 };
 
