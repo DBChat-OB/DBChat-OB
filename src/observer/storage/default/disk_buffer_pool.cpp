@@ -467,8 +467,27 @@ RC DiskBufferPool::flush_block(Frame *frame)
 
 RC DiskBufferPool::allocate_block(Frame **buffer)
 {
-
-  // There is one Frame which is free.
+    int frame_id = bp_manager_.alloc_clock(); // 通过时钟替换算法分配的页框号
+    if (frame_id == -1){
+        //如果buffer pool里面所有的页框都被pinned
+        LOG_ERROR("All pages have been used and pinned.");
+        return RC::NOMEM;
+    }
+    else {
+        //已经成功分配一个页框
+        LOG_DEBUG("Allocate block frame=%p", bp_manager_.frame + frame_id);
+        if (bp_manager_.frame[frame_id].dirty) {
+            //如果是脏页就写回文件
+            RC rc = flush_block(&(bp_manager_.frame[frame_id]));
+            if (rc != RC::SUCCESS) {
+                LOG_ERROR("Failed to flush block of %d for %d.", frame_id, bp_manager_.frame[frame_id].file_desc);
+                return rc;
+            }
+        }
+        *buffer = bp_manager_.frame + frame_id;
+        return RC::SUCCESS;
+    }
+  /*// There is one Frame which is free.
   for (int i = 0; i < BP_BUFFER_SIZE; i++) {
     if (!bp_manager_.allocated[i]) {
       bp_manager_.allocated[i] = true;
@@ -507,7 +526,7 @@ RC DiskBufferPool::allocate_block(Frame **buffer)
     }
   }
   *buffer = bp_manager_.frame + min;
-  return RC::SUCCESS;
+  return RC::SUCCESS;*/
 }
 
 RC DiskBufferPool::dispose_block(Frame *buf)

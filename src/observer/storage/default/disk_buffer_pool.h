@@ -80,24 +80,66 @@ class BPManager {
 public:
   BPManager(int size = BP_BUFFER_SIZE) {
     this->size = size;
+    this->clockHand = size-1;
     frame = new Frame[size];
     allocated = new bool[size];
+    ref = new bool[size];
     for (int i = 0; i < size; i++) {
       allocated[i] = false;
       frame[i].pin_count = 0;
+      ref[i] = false;
     }
   }
 
   ~BPManager() {
     delete[] frame;
     delete[] allocated;
+    delete[] ref;
     size = 0;
     frame = nullptr;
     allocated = nullptr;
+    ref = nullptr;
   }
 
   Frame *alloc() {
     return nullptr; // TODO for test
+  }
+
+  int alloc_clock() {
+      //在这里实现了时钟替换算法
+      //用于记录被pinned的frame数量
+      int pinnedFrameNumber = 0;
+      //轮询
+      begin: advanceClock();
+      //如果所有的frame均被pinned则抛出异常
+      if (pinnedFrameNumber>=size)
+          return -1;
+      if (!allocated[clockHand]) {
+          //如果frame是空的就直接用
+          ref[clockHand] = false;
+          allocated[clockHand] = true;
+          return clockHand;
+      }
+      else {
+          if (ref[clockHand]) {
+              //更新ref位
+              ref[clockHand] = false;
+              goto begin; //进行下一次轮询
+          }
+          else {
+              if (frame[clockHand].pin_count>0) {
+                  //如果该页正在被引用则记录数++
+                  pinnedFrameNumber++;
+                  goto begin;//进行下一次轮询
+              }
+              else {
+                  //把原来的记录去除掉
+                  ref[clockHand] = false;
+                  //返回分配的frame
+                  return clockHand;
+              }
+          }
+      }
   }
 
   Frame *get(int file_desc, PageNum page_num) {
@@ -112,6 +154,14 @@ public:
   int size;
   Frame * frame = nullptr;
   bool *allocated = nullptr;
+  bool *ref = nullptr;
+  int clockHand = 0;
+
+private:
+    void advanceClock() {
+        //将时钟轮询的指针拨向下一位
+        clockHand = (clockHand+1)%(size);
+    }
 };
 
 class DiskBufferPool {
