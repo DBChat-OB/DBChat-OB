@@ -642,7 +642,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         ss << std::endl;
     } else {
         //建立排序
-
+        Tuple::clear();
         for (int i =  selects.order_num-1; i>=0; i--) {
             RelAttr attr = selects.orders[i];
             int id;

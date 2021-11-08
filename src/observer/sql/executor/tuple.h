@@ -105,6 +105,9 @@ public:
     static void append_order_attr(int id){
         orders.push_back(id);
     }
+    static void clear(){
+        orders.clear();
+    }
 private:
     std::vector<std::shared_ptr<TupleValue>> values_;
 
