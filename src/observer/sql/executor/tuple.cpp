@@ -280,6 +280,7 @@ const std::vector<Tuple> &TupleSet::tuples() const {
     return tuples_;
 }
 
+
 /////////////////////////////////////////////////////////////////////////////
 TupleRecordConverter::TupleRecordConverter(Table *table, TupleSet &tuple_set) :
         table_(table), tuple_set_(tuple_set) {

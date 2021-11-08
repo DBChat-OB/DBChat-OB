@@ -41,8 +41,6 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
 
 void cal_agg(TupleSet &tupleSet, int id, AggType aggType, std::ostream &os);
 
-RC do_agg_select(const char *db, Query *sql, SessionEvent *session_event);
-
 static RC schema_add_field(Table *table, const char *field_name, TupleSchema &schema);
 
 RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
@@ -643,11 +641,31 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         ss << std::endl;
     } else {
+        //建立排序
+
+        for (int i =  selects.order_num-1; i>=0; i--) {
+            RelAttr attr = selects.orders[i];
+            int id;
+            if (attr.relation_name == nullptr) {
+                id = out_schema.index_of_field(selects.relations[0], attr.attribute_name);
+
+            } else {
+                id = out_schema.index_of_field(attr.relation_name, attr.attribute_name);
+            }
+            if (id != -1) {
+                Tuple::append_order_attr(id);
+            } else {
+                return RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
+            }
+        }
+        tupleSet.sort();
+
+
         if (tuple_sets.size() > 1) {
             //表的打印
             tupleSet.print_with_table(ss);
         } else {
-            tuple_sets.front().print(ss);
+            tupleSet.print(ss);
         }
     }
     for (SelectExeNode *&tmp_node: select_nodes) {
