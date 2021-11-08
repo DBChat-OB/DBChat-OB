@@ -529,6 +529,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
     }
     TupleSet tupleSet;
+    tupleSet.set_print_order(selects.asc);
     tupleSet.set_schema(out_schema);
     std::stringstream ss;
 
@@ -659,8 +660,6 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             }
         }
         tupleSet.sort();
-
-
         if (tuple_sets.size() > 1) {
             //表的打印
             tupleSet.print_with_table(ss);

@@ -109,6 +109,8 @@ ParserContext *get_context(yyscan_t scanner)
         AVG
         ORDER
         BY
+        ASC
+
 
 %union {
   struct _Attr *attr;
@@ -164,6 +166,7 @@ command:
 	| AGG_list
 	| orders
 	| order_list
+	| up_down
     ;
 
 exit:			
@@ -348,7 +351,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where orders SEMICOLON
+    SELECT select_attr FROM ID rel_list where orders up_down SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -380,6 +383,16 @@ select:				/*  select 语句的语法解析树*/
                 			CONTEXT->select_length=0;
                 			CONTEXT->value_length = 0;
 	};
+up_down:
+/* empty */{
+selects_set_order(&CONTEXT->ssql->sstr.selection,1);
+}
+|ASC{
+selects_set_order(&CONTEXT->ssql->sstr.selection,1);
+}
+|DESC{
+selects_set_order(&CONTEXT->ssql->sstr.selection,0);
+};
 agg_attrs:
     AGG AGG_list{
 

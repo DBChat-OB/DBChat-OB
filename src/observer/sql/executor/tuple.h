@@ -218,6 +218,9 @@ public:
     void sort(){
         std::sort(tuples_.begin(),tuples_.end());
     }
+    void set_print_order(int  order){
+        print_order=order;
+    }
 
 public:
     const TupleSchema &schema() const {
@@ -227,6 +230,7 @@ public:
 private:
     std::vector<Tuple> tuples_;
     TupleSchema schema_;
+    int print_order= 1;
 };
 
 /**

@@ -115,6 +115,9 @@ void selects_append_attribute(Selects *selects, RelAttr *rel_attr) {
 void selects_append_orders(Selects * selects,RelAttr * rel_attr){
     selects->orders[selects->order_num++]=*rel_attr;
 }
+void selects_set_order(Selects* selects,int order){
+    selects->asc= order;
+}
 void selects_append_relation(Selects *selects, const char *relation_name) {
   selects->relations[selects->relation_num++] = strdup(relation_name);
 }
