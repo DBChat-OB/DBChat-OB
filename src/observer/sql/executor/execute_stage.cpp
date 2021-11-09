@@ -461,7 +461,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Trx *trx = session->current_trx();
     TupleSchema schemas[sql->sstr.selection.relation_num];//每个表的模式
     const Selects &selects = sql->sstr.selection;
-
+    int order_size=selects.order_num;
     TupleSchema out_schema;
     struct filter filters[20];
     int filter_num = 0;//filters的个数
@@ -658,7 +658,10 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 return RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
             }
         }
-        tupleSet.sort();
+        if(order_size!=0){
+            tupleSet.sort();
+        }
+
         if (tuple_sets.size() > 1) {
             //表的打印
             tupleSet.print_with_table(ss);
