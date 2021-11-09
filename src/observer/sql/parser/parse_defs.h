@@ -53,6 +53,14 @@ typedef struct _Value {
     void *data;     // value
 } Value;
 
+#define MAX_TUPLES_ONE_INSERTION 30
+
+// 元组，属性值的集合，即一行数据
+typedef struct s_tuple {
+    size_t count; // 值的个数
+    Value values[MAX_NUM];
+} LexTuple;
+
 typedef struct _Condition {
     int left_is_attr;    // TRUE if left-hand side is an attribute
     // 1时，操作符左边是属性名，0时，是属性值
@@ -211,7 +219,7 @@ void selects_set_order(Selects* selects,int order);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);
 void selects_destroy(Selects *selects);
 
-void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num);
+void inserts_init(Inserts *inserts, const char *relation_name, LexTuple tuples[], size_t tuple_count);
 void inserts_destroy(Inserts *inserts);
 
 void deletes_init_relation(Deletes *deletes, const char *relation_name);
