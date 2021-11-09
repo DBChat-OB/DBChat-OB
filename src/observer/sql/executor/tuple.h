@@ -70,8 +70,8 @@ public:
     void add(time_t value);
 
     bool operator==(Tuple &other) {
-        for (int i = 0; i < orders.size(); i++) {
-            if (!values_.at(orders[i])->compare(other.get(orders[i]))) {
+        for (int order : orders) {
+            if (!values_.at(order)->compare(other.get(order))) {
                 return false;
             }
         }
@@ -79,8 +79,8 @@ public:
     }
 
     bool operator<(Tuple &other) {
-        for (int i = 0; i < orders.size(); i++) {
-            int ret = values_.at(orders[i])->compare(other.get(orders[i]));
+        for (int order : orders) {
+            int ret = values_.at(order)->compare(other.get(order));
             if (ret < 0) {
                 return true;
             } else if (ret == 0) {

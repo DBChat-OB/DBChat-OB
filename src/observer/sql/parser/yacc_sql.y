@@ -15,6 +15,13 @@ typedef struct ParserContext {
   size_t select_length;
   size_t condition_length;
   size_t from_length;
+  // 多行插入：将元组记录到insert_tuples中，元组个数记录到insert_count中
+  // 解析时，当前正在读入的元组即为insert_tuples[insert_count]
+  // 当一个元组被解析完毕后，insert_count自增，继续解析后续的元组
+  size_t insert_count; // 在解析过程中，该数值随着读入的tuple个数增加而增加，始终指向当前未读取完的（即最后一个）元组
+  LexTuple insert_tuples[MAX_TUPLES_ONE_INSERTION];
+  // keuin: 为减少代码修改范围，values和value_length保留给单值操作使用，保持不变
+  // 读取时，同时读取到两个缓冲区里。读取完毕使用时，根据语句类型选择使用单值或多值缓冲区（旧的使用单值缓冲区的代码不用变）
   size_t value_length;
   Value values[MAX_NUM];
   Condition conditions[MAX_NUM];
@@ -43,8 +50,23 @@ void yyerror(yyscan_t scanner, const char *str)
   context->from_length = 0;
   context->select_length = 0;
   context->value_length = 0;
-  context->ssql->sstr.insertion.value_num = 0;
+  context->insert_count = 0;
+  context->ssql->sstr.insertion.tuple_count = 0;
   printf("parse sql failed. error=%s", str);
+}
+
+// INSERT语句中每个tuple的语义动作
+static void insert_tuple_add(ParserContext *CONTEXT) {
+	// 一个tuple读完了，把他复制到tuple list里，供多值insert使用
+	// 逐个复制当前tuple的每个值
+	LexTuple *copy_target = &CONTEXT->insert_tuples[CONTEXT->insert_count];
+	size_t value_count = CONTEXT->value_length;
+	for (size_t i = 0; i < value_count; ++i) {
+		copy_target->values[i] = CONTEXT->values[i];
+	}
+	copy_target->count = value_count;
+	CONTEXT->insert_count++;
+	CONTEXT->value_length = 0; // 当前元组读取完毕，丢弃元组读入缓冲区中的所有标量值，防止前一个元组的值出现在下一个元组里
 }
 
 ParserContext *get_context(yyscan_t scanner)
@@ -298,7 +320,7 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE SEMICOLON 
+    INSERT INTO ID VALUES tuple { insert_tuple_add(CONTEXT); } tuple_list SEMICOLON 
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
@@ -308,15 +330,23 @@ insert:				/*insert   语句的语法解析树*/
 			// for(i = 0; i < CONTEXT->value_length; i++){
 			// 	CONTEXT->ssql->sstr.insertion.values[i] = CONTEXT->values[i];
       // }
-			inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
+			inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->insert_tuples, CONTEXT->insert_count);
 
       //临时变量清零
-      CONTEXT->value_length=0;
+      CONTEXT->insert_count=0;
     }
+
+tuple:
+    LBRACE value value_list RBRACE;
+
+tuple_list:
+    | COMMA tuple {
+		insert_tuple_add(CONTEXT);
+	} tuple_list;
 
 value_list:
     /* empty */
-    | COMMA value value_list  { 
+    | COMMA value value_list  {
   		// CONTEXT->values[CONTEXT->value_length++] = *$2;
 	  }
     ;
