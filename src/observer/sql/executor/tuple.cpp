@@ -209,7 +209,13 @@ void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();
 }
+void TupleSet::join(TupleSet &other,TupleSet&ret,std::vector<Condition> &conditions){
+    //先选出位于这两表的属性
+    for(int i=0;i<conditions.size();i++){
+        Condition  condition=conditions[i];
+    }
 
+}
 void TupleSet::print_with_table(std::ostream &os) const {
     if (schema_.fields().empty()) {
         LOG_WARN("Got empty schema");
