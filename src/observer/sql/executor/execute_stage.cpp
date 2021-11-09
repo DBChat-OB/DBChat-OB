@@ -317,7 +317,7 @@ bool do_filter(std::vector<Tuple *> *stack, struct filter *filters, int num) {
  * @param tupleSchema
  * @return
  */
-RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
+RC create_out_schema(const char *db,  Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
                      struct filter *filters, int &num) {
     std::vector<std::string> table_names;
     for (int i = 0; i < selects.relation_num - 1; i++) {
@@ -451,7 +451,38 @@ RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSc
     }
     return RC::SUCCESS;
 }
-
+bool condition_match(Condition &a,Condition&b,Condition& ret){
+    char*name;
+    char*attr;
+    Value value;
+    ret.right_is_attr=0;
+    ret.left_is_attr=1;
+    ret.comp=a.comp;
+    if(a.right_is_attr==1){
+        name=a.right_attr.relation_name;
+        attr=a.right_attr.attribute_name;
+        value=a.left_value;
+    }
+    else{
+        name=a.left_attr.relation_name;
+        attr=a.left_attr.attribute_name;
+        value=a.right_value;
+    }
+    ret.right_value=value;
+    if(b.left_is_attr==1&&b.right_is_attr==1&&b.comp==EQUAL_TO&&(strcmp(b.left_attr.relation_name,b.right_attr.relation_name)!=0)){
+        if(strcmp(name,b.left_attr.relation_name)==0&& strcmp(attr,b.left_attr.attribute_name)==0){//
+            ret.left_attr=b.right_attr;
+            return true;
+        } else if(strcmp(name,b.right_attr.relation_name)==0&& strcmp(attr,b.right_attr.attribute_name)==0){
+            ret.left_attr=b.left_attr;
+            return true;
+        } else{
+            return false;
+        }
+    } else{
+        return false;
+    }
+}
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
@@ -460,12 +491,33 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     TupleSchema schemas[sql->sstr.selection.relation_num];//每个表的模式
-    const Selects &selects = sql->sstr.selection;
+    Selects &selects = sql->sstr.selection;
     int order_size=selects.order_num;
     TupleSchema out_schema;
     struct filter filters[20];
     int filter_num = 0;//filters的个数
+    //构造condition
+    int condition_size=selects.condition_num;
+    bool sign[MAX_NUM];
+    memset(sign,0, sizeof(bool)*MAX_NUM);
+    for(int i=0;i<selects.condition_num;i++){
+        Condition condition=selects.conditions[i];
+        if((condition.left_is_attr==1&&condition.right_is_attr==0)||(condition.left_is_attr==0&&condition.right_is_attr==1)){
+            for(int j=0;j<condition_size;j++){
+                if(i!=j&&sign[j]== false){
+                    Condition condition1=selects.conditions[j];
+                    Condition add;
+                    if(condition_match(condition,condition1,add)){
+                        selects.conditions[selects.condition_num++]=add;
+                        sign[j]= true;
+                    }
+                }
+            }
+        }
+    }
+
     //构造最后的输出schema与各表查询的schema,以及构建表间的比较
+    //应该构造新的filter来减少元组
     if ((rc = create_out_schema(db, selects, out_schema, schemas, filters, filter_num)) != RC::SUCCESS) {
         const char *failure_ptr = "FAILURE\n";//这种地方复制有点冗余
         session_event->set_response(failure_ptr);
