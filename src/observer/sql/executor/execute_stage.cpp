@@ -320,7 +320,8 @@ bool do_filter(std::vector<Tuple *> *stack, struct filter *filters, int num) {
 RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
                      struct filter *filters, int &num) {
     std::vector<std::string> table_names;
-    for (int i = 0; i < selects.relation_num - 1; i++) {
+    table_names.reserve(selects.relation_num - 1);
+    for (size_t i = 0; i < selects.relation_num - 1; i++) {
         table_names.emplace_back(selects.relations[i]);
     }
     for (int i = selects.attr_num - 1; i >= 0; i--) {//遍历要从后往前，因为sql解析的缘故
@@ -358,7 +359,7 @@ RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSc
             TupleSchema tmpSchema;
             Table *table = DefaultHandler::get_default().find_table(db, attr.relation_name);
             //要在后面的relationo里 这里是校验
-            int j;
+            size_t j;
             for (j = 0; j < selects.relation_num; j++) {
                 if (strcmp(attr.relation_name, selects.relations[j]) == 0) {
                     break;
@@ -556,7 +557,8 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             bool add = do_filter(&stack, filters, filter_num);
             if (add) {//向输出里加入
                 std::vector<std::shared_ptr<TupleValue>> values;
-                for (int i = 0; i < out_schema.fields().size(); i++) {
+                values.reserve(out_schema.fields().size());
+                for (size_t i = 0; i < out_schema.fields().size(); i++) {
                     values.emplace_back(stack[map[i].table]->values()[map[i].value]);
                 }
                 tuple.add(values);
@@ -597,7 +599,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         if (tupleSet.size() == 0) {
             return RC::SUCCESS;
         }
-        for (int i = 0; i < selects.attr_num - 1; i++) {
+        for (size_t i = 0; i < selects.attr_num - 1; i++) {
             RelAttr attr = selects.attributes[i];
             for (int j = 0; j < tuple_sets.size(); j++) {
                 int id;
@@ -622,7 +624,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         //输出最后一个
         RelAttr attr = selects.attributes[selects.attr_num - 1];
-        for (int j = 0; j < tuple_sets.size(); j++) {
+        for (size_t j = 0; j < tuple_sets.size(); j++) {
             int id;
             if (strcmp(attr.attribute_name, "*") == 0) {
                 cal_agg(tupleSet, -1, attr.aggType, ss);
