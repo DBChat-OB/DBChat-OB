@@ -164,8 +164,13 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
   case SCF_INSERT: { // insert into
       const Inserts &inserts = sql->sstr.insertion;
       const char *table_name = inserts.relation_name;
-      rc = handler_->insert_record(current_trx, current_db, table_name, inserts.value_num, inserts.values);
+      // TODO 将int全部替换为size_t
+      rc = handler_->insert_record(current_trx, current_db, table_name, (int)inserts.tuple_count, inserts.tuples);
       snprintf(response, sizeof(response), "%s\n", rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");
+      if (rc != RC::SUCCESS) {
+          // 插入失败，回滚以保证操作的原子性
+          current_trx->rollback();
+      }
     }
     break;
   case SCF_UPDATE: {

@@ -51,8 +51,22 @@ void yyerror(yyscan_t scanner, const char *str)
   context->select_length = 0;
   context->value_length = 0;
   context->insert_count = 0;
-  context->ssql->sstr.insertion.value_num = 0;
+  context->ssql->sstr.insertion.tuple_count = 0;
   printf("parse sql failed. error=%s", str);
+}
+
+// INSERT语句中每个tuple的语义动作
+static void insert_tuple_add(ParserContext *CONTEXT) {
+	// 一个tuple读完了，把他复制到tuple list里，供多值insert使用
+	// 逐个复制当前tuple的每个值
+	LexTuple *copy_target = &CONTEXT->insert_tuples[CONTEXT->insert_count];
+	size_t value_count = CONTEXT->value_length;
+	for (size_t i = 0; i < value_count; ++i) {
+		copy_target->values[i] = CONTEXT->values[i];
+	}
+	copy_target->count = value_count;
+	CONTEXT->insert_count++;
+	CONTEXT->value_length = 0; // 当前元组读取完毕，丢弃元组读入缓冲区中的所有标量值，防止前一个元组的值出现在下一个元组里
 }
 
 ParserContext *get_context(yyscan_t scanner)
@@ -306,7 +320,7 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES tuple tuple_list SEMICOLON 
+    INSERT INTO ID VALUES tuple { insert_tuple_add(CONTEXT); } tuple_list SEMICOLON 
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
@@ -327,15 +341,7 @@ tuple:
 
 tuple_list:
     | COMMA tuple {
-		// 一个tuple读完了，把他复制到tuple list里，供多值insert使用
-		// 逐个复制当前tuple的每个值
-		LexTuple *copy_target = &CONTEXT->insert_tuples[CONTEXT->insert_count];
-		size_t value_count = CONTEXT->value_length;
-		for (size_t i = 0; i < value_count; ++i) {
-            copy_target->values[i] = CONTEXT->values[i];
-		}
-		copy_target->count = value_count;
-		CONTEXT->insert_count++;
+		insert_tuple_add(CONTEXT);
 	} tuple_list;
 
 value_list:

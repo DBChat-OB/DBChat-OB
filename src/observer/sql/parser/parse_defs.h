@@ -90,8 +90,8 @@ typedef struct {
 // struct of insert
 typedef struct {
     char *relation_name;    // Relation to insert into
-    size_t value_num;       // Length of values
-    Value values[MAX_NUM];  // values to insert
+    size_t tuple_count; // how many tuples to insert
+    LexTuple tuples[MAX_TUPLES_ONE_INSERTION]; // tuples to be inserted
 } Inserts;
 
 // struct of delete
