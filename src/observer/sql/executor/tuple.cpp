@@ -216,30 +216,18 @@ void TupleSet::print_with_table(std::ostream &os) const {
         return;
     }
     schema_.print_with_table(os);
-    if(print_order){
-        for (const Tuple &item: tuples_) {
-            const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-            for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
-                 iter != end; ++iter) {
-                (*iter)->to_string(os);
-                os << " | ";
-            }
-            values.back()->to_string(os);
-            os << std::endl;
+
+    for (const Tuple &item: tuples_) {
+        const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
+        for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
+             iter != end; ++iter) {
+            (*iter)->to_string(os);
+            os << " | ";
         }
-    } else{
-        for(int i=tuples_.size()-1;i>=0;i--){
-            const Tuple &item=tuples_.at(i);
-            const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-            for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
-                 iter != end; ++iter) {
-                (*iter)->to_string(os);
-                os << " | ";
-            }
-            values.back()->to_string(os);
-            os << std::endl;
-        }
+        values.back()->to_string(os);
+        os << std::endl;
     }
+
 
 }
 
@@ -250,30 +238,18 @@ void TupleSet::print(std::ostream &os) const {
     }
 
     schema_.print(os);
-    if(print_order){
-        for (const Tuple &item: tuples_) {
-            const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-            for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
-                 iter != end; ++iter) {
-                (*iter)->to_string(os);
-                os << " | ";
-            }
-            values.back()->to_string(os);
-            os << std::endl;
+
+    for (const Tuple &item: tuples_) {
+        const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
+        for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
+             iter != end; ++iter) {
+            (*iter)->to_string(os);
+            os << " | ";
         }
-    } else{
-        for(int i=tuples_.size()-1;i>=0;i--){
-            const Tuple &item=tuples_.at(i);
-            const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
-            for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
-                 iter != end; ++iter) {
-                (*iter)->to_string(os);
-                os << " | ";
-            }
-            values.back()->to_string(os);
-            os << std::endl;
-        }
+        values.back()->to_string(os);
+        os << std::endl;
     }
+
 }
 
 void TupleSet::set_schema(const TupleSchema &schema) {
@@ -299,7 +275,6 @@ const Tuple &TupleSet::get(int index) const {
 Tuple *TupleSet::get(int index) {
     return &tuples_[index];
 }
-
 
 
 const std::vector<Tuple> &TupleSet::tuples() const {

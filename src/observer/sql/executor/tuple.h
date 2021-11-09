@@ -23,16 +23,18 @@ See the Mulan PSL v2 for more details. */
 #include "sql/executor/value.h"
 
 class Table;
+
 static std::vector<int> orders;
-struct filter{
-int left_table;
-int left_value;
-int right_table;
-int right_value;
-CompOp op;
-bool is_same_type{true};
+static std::vector<int> ascs;
+struct filter {
+    int left_table;
+    int left_value;
+    int right_table;
+    int right_value;
+    CompOp op;
+    bool is_same_type{true};
 };
-struct out_map{
+struct out_map {
     int table;
     int value;
 };
@@ -52,6 +54,7 @@ public:
     Tuple &operator=(Tuple &&other) noexcept;
 
     void add(TupleValue *value);
+
     void add(Tuple *tuple);
 
     void add(std::vector<std::shared_ptr<TupleValue>> other);
@@ -65,28 +68,30 @@ public:
     void add(unsigned int value);
 
     void add(time_t value);
-    bool operator==(Tuple & other){
-        for(int i=0;i<orders.size();i++){
-            if(!values_.at(orders[i])->compare(other.get(orders[i]))){
+
+    bool operator==(Tuple &other) {
+        for (int i = 0; i < orders.size(); i++) {
+            if (!values_.at(orders[i])->compare(other.get(orders[i]))) {
                 return false;
             }
         }
         return true;
     }
-    bool operator<(Tuple &other){
-        for(int i=0;i<orders.size();i++){
-            int ret=values_.at(orders[i])->compare(other.get(orders[i]));
-            if(ret<0){
+
+    bool operator<(Tuple &other) {
+        for (int i = 0; i < orders.size(); i++) {
+            int ret = values_.at(orders[i])->compare(other.get(orders[i]));
+            if (ret < 0) {
                 return true;
-            } else if(ret==0){
+            } else if (ret == 0) {
                 continue;
-            }
-            else{
+            } else {
                 return false;
             }
         }
         return true;
     }
+
     const std::vector<std::shared_ptr<TupleValue>> &values() const {
         return values_;
     }
@@ -102,17 +107,47 @@ public:
     const std::shared_ptr<TupleValue> &get_pointer(int index) const {
         return values_[index];
     }
-    static void append_order_attr(int id){
+
+    static void append_order_attr(int id, int asc) {
         orders.push_back(id);
+        ascs.push_back(asc);
     }
-    static void clear(){
+
+    static void clear() {
         orders.clear();
+        ascs.clear();
     }
+
 private:
     std::vector<std::shared_ptr<TupleValue>> values_;
 
 
 };
+
+static bool comp(const Tuple &a, const Tuple &b) {
+    for (int i = 0; i < orders.size(); i++) {
+        int ret = a.get(orders[i]).compare(b.get(orders[i]));
+        if(ascs[i]==1){
+            if(ret==0){
+                continue;
+            } else if( ret>0){
+                return false;
+            } else{
+                return true;
+            }
+        }
+        else{
+            if(ret==0){
+                continue;
+            } else if( ret>0){
+                return true;
+            } else{
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 //该类的数组构成tuple的模式
 class TupleField {
@@ -148,9 +183,11 @@ public:
     ~TupleSchema() = default;
 
     void add(AttrType type, const char *table_name, const char *field_name);
-    int  get_field_size(){
+
+    int get_field_size() {
         return field_num;
     }
+
     void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
 
     // void merge(const TupleSchema &other);
@@ -172,7 +209,9 @@ public:
     void clear() {
         fields_.clear();
     }
+
     void print(std::ostream &os) const;
+
     void print_with_table(std::ostream &os) const;
 
 public:
@@ -202,7 +241,9 @@ public:
     const TupleSchema &get_schema() const;
 
     void add(Tuple &&tuple);
-    void add(Tuple* tuple);
+
+    void add(Tuple *tuple);
+
     void clear();
 
     bool is_empty() const;
@@ -210,16 +251,19 @@ public:
     int size() const;
 
     const Tuple &get(int index) const;
+
     const std::string &getData(int index) const;
-    Tuple* get(int index);
+
+    Tuple *get(int index);
+
     const std::vector<Tuple> &tuples() const;
+
     void print(std::ostream &os) const;
+
     void print_with_table(std::ostream &os) const;
-    void sort(){
-        std::sort(tuples_.begin(),tuples_.end());
-    }
-    void set_print_order(int  order){
-        print_order=order;
+
+    void sort() {
+        std::sort(tuples_.begin(), tuples_.end(), comp);
     }
 
 public:
@@ -230,7 +274,6 @@ public:
 private:
     std::vector<Tuple> tuples_;
     TupleSchema schema_;
-    int print_order= 1;
 };
 
 /**

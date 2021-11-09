@@ -75,6 +75,7 @@ typedef struct {
     Condition conditions[MAX_NUM];    // conditions in Where clause
     size_t order_num;
     RelAttr orders[MAX_NUM]; // 排序的属性
+    size_t ascs[MAX_NUM];//升降序
     int asc;//排序升降
 } Selects;
 
@@ -204,7 +205,7 @@ void attr_info_destroy(AttrInfo *attr_info);
 
 void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr);
-void selects_append_orders(Selects * selects,RelAttr * rel_attr);
+void selects_append_orders(Selects * selects,RelAttr * rel_attr,int asc);
 void selects_append_relation(Selects *selects, const char *relation_name);
 void selects_set_order(Selects* selects,int order);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);

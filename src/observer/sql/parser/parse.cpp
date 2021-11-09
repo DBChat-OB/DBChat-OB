@@ -112,8 +112,10 @@ void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr) {
   selects->attributes[selects->attr_num++] = *rel_attr;
 }
-void selects_append_orders(Selects * selects,RelAttr * rel_attr){
-    selects->orders[selects->order_num++]=*rel_attr;
+void selects_append_orders(Selects * selects,RelAttr * rel_attr,int asc){
+    selects->orders[selects->order_num]=*rel_attr;
+    selects->ascs[selects->order_num]=asc;
+    selects->order_num++;
 }
 void selects_set_order(Selects* selects,int order){
     selects->asc= order;

@@ -166,7 +166,6 @@ command:
 	| AGG_list
 	| orders
 	| order_list
-	| up_down
     ;
 
 exit:			
@@ -351,7 +350,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where orders up_down SEMICOLON
+    SELECT select_attr FROM ID rel_list where orders SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
@@ -383,16 +382,6 @@ select:				/*  select 语句的语法解析树*/
                 			CONTEXT->select_length=0;
                 			CONTEXT->value_length = 0;
 	};
-up_down:
-/* empty */{
-selects_set_order(&CONTEXT->ssql->sstr.selection,1);
-}
-|ASC{
-selects_set_order(&CONTEXT->ssql->sstr.selection,1);
-}
-|DESC{
-selects_set_order(&CONTEXT->ssql->sstr.selection,0);
-};
 agg_attrs:
     AGG AGG_list{
 
@@ -407,24 +396,64 @@ orders:
 | ORDER BY ID order_list{
 	RelAttr attr;
 	relation_attr_init(&attr, NULL, $3);
-        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
 }
 | ORDER BY ID DOT ID order_list{
 	RelAttr attr;
 	relation_attr_init(&attr, $3, $5);
-        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| ORDER BY ID ASC order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| ORDER BY ID DOT ID ASC order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| ORDER BY ID DESC order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+}
+| ORDER BY ID DOT ID DESC order_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
 };
 order_list:
  /* empty */
- |COMMA ID order_list{
-	RelAttr attr;
-	relation_attr_init(&attr, NULL, $2);
-        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+ | COMMA ID order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
  }
- |COMMA ID DOT ID order_list{
-	RelAttr attr;
-	relation_attr_init(&attr, $2, $4);
-        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr);
+ | COMMA  ID DOT ID order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID ASC order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID DOT ID ASC order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID DESC order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+ }
+ | COMMA  ID DOT ID DESC order_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
  };
 AGG:
     MAX LBRACE ID DOT ID RBRACE{

@@ -529,7 +529,6 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
     }
     TupleSet tupleSet;
-    tupleSet.set_print_order(selects.asc);
     tupleSet.set_schema(out_schema);
     std::stringstream ss;
 
@@ -654,7 +653,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 id = out_schema.index_of_field(attr.relation_name, attr.attribute_name);
             }
             if (id != -1) {
-                Tuple::append_order_attr(id);
+                Tuple::append_order_attr(id, selects.ascs[i]);
             } else {
                 return RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
             }
