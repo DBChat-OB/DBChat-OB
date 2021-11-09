@@ -121,7 +121,7 @@ void selects_set_order(Selects* selects,int order){
     selects->asc= order;
 }
 void selects_append_relation(Selects *selects, const char *relation_name) {
-  for(int i=0;i<selects->relation_num;i++){//检查是否重复
+  for(size_t i=0;i<selects->relation_num;i++){//检查是否重复
     if(strcmp(selects->relations[i],relation_name)==0){
       return;
     }
