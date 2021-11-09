@@ -43,8 +43,8 @@ void cal_agg(TupleSet &tupleSet, int id, AggType aggType, std::ostream &os);
 
 static RC schema_add_field(Table *table, const char *field_name, TupleSchema &schema);
 
-RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
-                     std::vector<Condition> &t_t_conditions, int &num);
+RC create_out_schema(const char *db, const Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
+                     struct filter *filter, int &num);
 
 static RC schema_add_field_except_exist(Table *table, const char *field_name, TupleSchema &schema);
 
@@ -247,86 +247,78 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right) {
     }
 }
 
-/**
- * 如果当前栈的元组一定违反某个条件则返回
- * @param stack
- * @param filters
- * @param num
- * @return
- */
-bool do_tmp_filter(std::vector<Tuple *> *stack, struct filter *filters, int num) {
+bool do_filter(std::vector<Tuple *> *stack, struct filter *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;
-        if (filters->left_table < stack->size() && filters->right_table < stack->size()) {
-            if (filters[i].is_same_type) {
-                ret = stack->at(filters[i].left_table)->get(filters[i].left_value).compare(
-                        stack->at(filters[i].right_table)->get(filters[i].right_value));
+        if (filters[i].is_same_type) {
+            ret = stack->at(filters[i].left_table)->get(filters[i].left_value).compare(
+                    stack->at(filters[i].right_table)->get(filters[i].right_value));
+        } else {
+            float result = stack->at(filters[i].left_table)->get(filters[i].left_value).getFValue() -
+                           stack->at(filters[i].right_table)->get(filters[i].right_value).getFValue();
+            if (result > 0) {
+                ret = 1;
+            } else if (result < 0) {
+                ret = -1;
             } else {
-                float result = stack->at(filters[i].left_table)->get(filters[i].left_value).getFValue() -
-                               stack->at(filters[i].right_table)->get(filters[i].right_value).getFValue();
-                if (result > 0) {
-                    ret = 1;
-                } else if (result < 0) {
-                    ret = -1;
-                } else {
-                    ret = 0;
-                }
-            }
-            switch (filters[i].op) {
-                case CompOp::EQUAL_TO: {
-                    if (ret != 0) {
-                        return false;
-                    }
-                    break;
-                }
-
-                case CompOp::GREAT_EQUAL: {
-                    if (ret < 0) {
-                        return false;
-                    }
-                    break;
-                }
-                case CompOp::GREAT_THAN: {
-                    if (ret <= 0) {
-                        return false;
-                    }
-                    break;
-                }
-                case CompOp::LESS_EQUAL: {
-                    if (ret > 0) {
-                        return false;
-                    }
-                    break;
-                }
-                case CompOp::LESS_THAN: {
-                    if (ret >= 0) {
-                        return false;
-                    }
-                    break;
-                }
-                case CompOp::NOT_EQUAL: {
-                    if (ret == 0) {
-                        return false;
-                    }
-                    break;
-                }
-                case CompOp::NO_OP:
-                    break;
-
+                ret = 0;
             }
         }
+        switch (filters[i].op) {
+            case CompOp::EQUAL_TO: {
+                if (ret != 0) {
+                    return false;
+                }
+                break;
+            }
+
+            case CompOp::GREAT_EQUAL: {
+                if (ret < 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::GREAT_THAN: {
+                if (ret <= 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::LESS_EQUAL: {
+                if (ret > 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::LESS_THAN: {
+                if (ret >= 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::NOT_EQUAL: {
+                if (ret == 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::NO_OP:
+                break;
+
+        }
+
     }
     return true;
 }
 
 /**
- * 创建输出模式并进行校验,构造每个表的选择属性,schemas i是realtions i的投影模式,这里构造的filter没有意义不要使用
+ * 创建输出模式并进行校验,构造每个表的选择属性,schemas i是realtions i的投影模式,并构造flitet
  * @param selects
  * @param tupleSchema
  * @return
  */
-RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
-                     std::vector<Condition> &t_t_conditions, int &num) {
+RC create_out_schema(const char *db,  Selects selects, TupleSchema &tupleSchema, TupleSchema *tupleSchemas,
+                     struct filter *filters, int &num) {
     std::vector<std::string> table_names;
     for (int i = 0; i < selects.relation_num - 1; i++) {
         table_names.emplace_back(selects.relations[i]);
@@ -343,7 +335,7 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
                         return RC::SCHEMA_TABLE_NOT_EXIST;
                     }
                     TupleSchema::from_table(table, tmpSchema);
-                    tupleSchemas[selects.relation_num - 1 - j].append_if_not_exists(tmpSchema);
+                    tupleSchemas[j].append_if_not_exists(tmpSchema);
                     tupleSchema.append(tmpSchema);
                 }
             } else {
@@ -381,21 +373,21 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
                 Table *table = DefaultHandler::get_default().find_table(db, attr.relation_name);
                 TupleSchema::from_table(table, tmpSchema);
                 tupleSchema.append(tmpSchema);
-                tupleSchemas[selects.relation_num - 1 - j].append_if_not_exists(tmpSchema);
+                tupleSchemas[j].append_if_not_exists(tmpSchema);
             } else {
                 //列出表的相关字段不去重
                 RC rc = schema_add_field_except_exist(table, attr.attribute_name, tupleSchema);
                 if (rc != RC::SUCCESS) {
                     return rc;
                 }
-                rc = schema_add_field(table, attr.attribute_name, tupleSchemas[selects.relation_num - 1 - j]);
+                rc = schema_add_field(table, attr.attribute_name, tupleSchemas[j]);
                 if (rc != RC::SUCCESS) {
                     return rc;
                 }
             }
         }
     }
-    std::vector<DefaultConditionFilter *> condition_filters;//这个地方可以留着，但filter意义不打了，还要在新的地方重新构建
+    std::vector<DefaultConditionFilter *> condition_filters;
     for (size_t i = 0; i < selects.condition_num; i++) {
         const Condition &condition = selects.conditions[i];//conditon必须在from里面
         if (condition.left_is_attr == 1 && condition.right_is_attr == 1 &&
@@ -404,44 +396,41 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
             //先找左边
             AttrType left;
             AttrType right;
+            filters[num].op = condition.comp;
             int count = 0;
             for (int j = 0; j < selects.relation_num; j++) {
                 if (strcmp(condition.left_attr.relation_name, selects.relations[j]) == 0) {
-
-                    int id = tupleSchemas[selects.relation_num - 1 - j].index_of_field(
-                            condition.left_attr.relation_name,
-                            condition.left_attr.attribute_name);
+                    filters[num].left_table = j;
+                    int id = tupleSchemas[j].index_of_field(condition.left_attr.relation_name,
+                                                            condition.left_attr.attribute_name);
                     if (id == -1) {
                         Table *table = DefaultHandler::get_default().find_table(db, condition.left_attr.relation_name);
-                        RC rc = schema_add_field(table, condition.left_attr.attribute_name,
-                                                 tupleSchemas[selects.relation_num - 1 - j]);
+                        RC rc = schema_add_field(table, condition.left_attr.attribute_name, tupleSchemas[j]);
                         if (rc != RC::SUCCESS) {
                             return RC::SCHEMA_FIELD_MISSING;
                         }
                     }
-                    id = tupleSchemas[selects.relation_num - 1 - j].index_of_field(condition.left_attr.relation_name,
-                                                                                   condition.left_attr.attribute_name);
-
-                    left = tupleSchemas[selects.relation_num - 1 - j].field(id).type();
+                    id = tupleSchemas[j].index_of_field(condition.left_attr.relation_name,
+                                                        condition.left_attr.attribute_name);
+                    filters[num].left_value = id;
+                    left = tupleSchemas[j].field(id).type();
                     count++;
                 }
                 if (strcmp(condition.right_attr.relation_name, selects.relations[j]) == 0) {
-
-                    int id = tupleSchemas[selects.relation_num - 1 - j].index_of_field(
-                            condition.right_attr.relation_name,
-                            condition.right_attr.attribute_name);
+                    filters[num].right_table = j;
+                    int id = tupleSchemas[j].index_of_field(condition.right_attr.relation_name,
+                                                            condition.right_attr.attribute_name);
                     if (id == -1) {
                         Table *table = DefaultHandler::get_default().find_table(db, condition.right_attr.relation_name);
-                        RC rc = schema_add_field(table, condition.right_attr.attribute_name,
-                                                 tupleSchemas[selects.relation_num - 1 - j]);
+                        RC rc = schema_add_field(table, condition.right_attr.attribute_name, tupleSchemas[j]);
                         if (rc != RC::SUCCESS) {
                             return RC::SCHEMA_FIELD_MISSING;
                         }
                     }
-                    id = tupleSchemas[selects.relation_num - 1 - j].index_of_field(condition.right_attr.relation_name,
-                                                                                   condition.right_attr.attribute_name);
-
-                    right = tupleSchemas[selects.relation_num - 1 - j].field(id).type();
+                    id = tupleSchemas[j].index_of_field(condition.right_attr.relation_name,
+                                                        condition.right_attr.attribute_name);
+                    filters[num].right_value = id;
+                    right = tupleSchemas[j].field(id).type();
                     count++;
                 }
             }
@@ -452,131 +441,112 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
             if (right != left) {
                 if ((right == AttrType::FLOATS && left == AttrType::INTS) ||
                     (left == AttrType::FLOATS && right == AttrType::INTS)) {
+                    filters[num].is_same_type = false;
                 } else {
                     return RC::MISMATCH;
                 }
             }
             num++;
-            t_t_conditions.push_back(condition);
         }
     }
     return RC::SUCCESS;
 }
-
-bool condition_match(Condition &a, Condition &b, Condition &ret) {
-    char *name;
-    char *attr;
+bool condition_match(Condition &a,Condition&b,Condition& ret){
+    char*name;
+    char*attr;
     Value value;
-    ret.right_is_attr = 0;
-    ret.left_is_attr = 1;
-    ret.comp = a.comp;
-    if (a.right_is_attr == 1) {
-        name = a.right_attr.relation_name;
-        attr = a.right_attr.attribute_name;
-        value = a.left_value;
-    } else {
-        name = a.left_attr.relation_name;
-        attr = a.left_attr.attribute_name;
-        value = a.right_value;
+    ret.right_is_attr=0;
+    ret.left_is_attr=1;
+    ret.comp=a.comp;
+    if(a.right_is_attr==1){
+        name=a.right_attr.relation_name;
+        attr=a.right_attr.attribute_name;
+        value=a.left_value;
     }
-    ret.right_value = value;
-    if (b.left_is_attr == 1 && b.right_is_attr == 1 && b.comp == EQUAL_TO &&
-        (strcmp(b.left_attr.relation_name, b.right_attr.relation_name) != 0)) {
-        if (strcmp(name, b.left_attr.relation_name) == 0 && strcmp(attr, b.left_attr.attribute_name) == 0) {//
-            ret.left_attr = b.right_attr;
+    else{
+        name=a.left_attr.relation_name;
+        attr=a.left_attr.attribute_name;
+        value=a.right_value;
+    }
+    ret.right_value=value;
+    if(b.left_is_attr==1&&b.right_is_attr==1&&b.comp==EQUAL_TO&&(strcmp(b.left_attr.relation_name,b.right_attr.relation_name)!=0)){
+        if(strcmp(name,b.left_attr.relation_name)==0&& strcmp(attr,b.left_attr.attribute_name)==0){//
+            ret.left_attr=b.right_attr;
             return true;
-        } else if (strcmp(name, b.right_attr.relation_name) == 0 && strcmp(attr, b.right_attr.attribute_name) == 0) {
-            ret.left_attr = b.left_attr;
+        } else if(strcmp(name,b.right_attr.relation_name)==0&& strcmp(attr,b.right_attr.attribute_name)==0){
+            ret.left_attr=b.left_attr;
             return true;
-        } else {
+        } else{
             return false;
         }
-    } else {
+    } else{
         return false;
     }
 }
-/**
- * 基数估计
- * @param a
- * @param b
- * @param conditions
- * @return
- */
-int cal_card(TupleSet &a, TupleSet &b, std::vector<Condition> conditions) {
-    //查找连接条件
-    int ret=a.size()*b.size();
-    for (int i = 0; i < conditions.size(); i++) {
-        Condition condition = conditions[i];
-        int left_id;
-        int right_id;
-        if ((left_id = a.get_schema().index_of_field(condition.left_attr.relation_name,
-                                                         condition.left_attr.attribute_name)) != -1 &&
-            (right_id = b.get_schema().index_of_field(condition.right_attr.relation_name,
-                                                          condition.right_attr.attribute_name)) != -1) {
-            if(condition.comp==EQUAL_TO){
-                ret=ret/ std::max(a.size(),b.size());
-            }
-        } else if ((right_id = b.get_schema().index_of_field(condition.left_attr.relation_name,
-                                                                 condition.left_attr.attribute_name)) != -1 &&
-                   (left_id = a.get_schema().index_of_field(condition.right_attr.relation_name,
-                                                                condition.right_attr.attribute_name)) != -1) {
-            if(condition.comp==EQUAL_TO){
-                ret=ret/ std::max(a.size(),b.size());
-            }
-        }
-    }
-    return ret;
-}
-
 // 这里没有对输入的某些信息做合法性校验，比如查询的列名、where条件中的列名等，没有做必要的合法性校验
 // 需要补充上这一部分. 校验部分也可以放在resolve，不过跟execution放一起也没有关系
 RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_event) {
 
     RC rc = RC::SUCCESS;
-    std::vector<Condition> t_t_conditions;
     Session *session = session_event->get_client()->session;
     Trx *trx = session->current_trx();
     TupleSchema schemas[sql->sstr.selection.relation_num];//每个表的模式
     Selects &selects = sql->sstr.selection;
-    int order_size = selects.order_num;
+    int order_size=selects.order_num;
     TupleSchema out_schema;
     struct filter filters[20];
     int filter_num = 0;//filters的个数
     //构造condition
-    int condition_size = selects.condition_num;
+    int condition_size=selects.condition_num;
     bool sign[MAX_NUM];
-    memset(sign, 0, sizeof(bool) * MAX_NUM);
-    for (int i = 0; i < selects.condition_num; i++) {//这个地方只能起到很小的过滤作用，
-        Condition condition = selects.conditions[i];
-        if ((condition.left_is_attr == 1 && condition.right_is_attr == 0) ||
-            (condition.left_is_attr == 0 && condition.right_is_attr == 1)) {
-            for (int j = 0; j < condition_size; j++) {
-                if (i != j && sign[j] == false) {
-                    Condition condition1 = selects.conditions[j];
+    memset(sign,0, sizeof(bool)*MAX_NUM);
+    for(int i=0;i<selects.condition_num;i++){
+        Condition condition=selects.conditions[i];
+        if((condition.left_is_attr==1&&condition.right_is_attr==0)||(condition.left_is_attr==0&&condition.right_is_attr==1)){
+            for(int j=0;j<condition_size;j++){
+                if(i!=j&&sign[j]== false){
+                    Condition condition1=selects.conditions[j];
                     Condition add;
-                    if (condition_match(condition, condition1, add)) {
-                        selects.conditions[selects.condition_num++] = add;
-                        sign[j] = true;
+                    if(condition_match(condition,condition1,add)){
+                        selects.conditions[selects.condition_num++]=add;
+                        sign[j]= true;
                     }
                 }
             }
         }
     }
+
     //构造最后的输出schema与各表查询的schema,以及构建表间的比较
     //应该构造新的filter来减少元组
-    if ((rc = create_out_schema(db, selects, out_schema, schemas, t_t_conditions, filter_num)) != RC::SUCCESS) {
+    if ((rc = create_out_schema(db, selects, out_schema, schemas, filters, filter_num)) != RC::SUCCESS) {
         const char *failure_ptr = "FAILURE\n";//这种地方复制有点冗余
         session_event->set_response(failure_ptr);
         end_trx_if_need(session, trx, false);
         return rc;
     }
+    //构造查询的内容到输出内容的映射
+    int size = out_schema.get_field_size();
+    int num = 0;
+    struct out_map map[size];
+    for (int j = 0; j < size; j++) {
+        TupleField field = out_schema.field(j);
+        for (int i = 0; i < selects.relation_num; i++) {
+            int id = schemas[i].index_of_field(field.table_name(), field.field_name());
+            if (id != -1) {
+                map[num].table = i;
+                map[num].value = id;
+                num++;
+                break;
+            }
+        }
+    }
     // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
+
     std::vector<SelectExeNode *> select_nodes;
-    for (int i = selects.relation_num - 1; i >= 0; i--) {
+    for (size_t i = 0; i < selects.relation_num; i++) {
         const char *table_name = selects.relations[i];
         SelectExeNode *select_node = new SelectExeNode;
-        rc = create_selection_executor(trx, selects, db, table_name, *select_node,
-                                       schemas[selects.relation_num - 1 - i]);
+        rc = create_selection_executor(trx, selects, db, table_name, *select_node, schemas[i]);
         if (rc != RC::SUCCESS) {
             delete select_node;
             for (SelectExeNode *&tmp_node: select_nodes) {
@@ -589,6 +559,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         }
         select_nodes.push_back(select_node);
     }
+
     if (select_nodes.empty()) {
         LOG_ERROR("No table given");
         end_trx_if_need(session, trx, false);
@@ -612,109 +583,78 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
     TupleSet tupleSet;
     tupleSet.set_schema(out_schema);
     std::stringstream ss;
-    int equalCondition_size = 0;
-    // 本次查询了多张表，需要做join操作 在笛卡尔积前先缩小元组范围
-    //连接操作需要选出连接顺序 这里结束后sets只剩下一个连接结果
-    int old_tuple_set_szie = tuple_sets.size();
-    while (tuple_sets.size() > 1) {//表连接
-        int min_card = tuple_sets[0].size() * tuple_sets[1].size();
-        std::vector<TupleSet>::iterator min_ip = tuple_sets.begin();
-        std::vector<TupleSet>::iterator min_jp = min_ip + 1;
-        //选取连接的表
-        for (std::vector<TupleSet>::iterator i = tuple_sets.begin(); i != tuple_sets.end(); i++) {
-            for (std::vector<TupleSet>::iterator j = i + 1; j != tuple_sets.end(); j++) {
-                int tmp = cal_card(*i, *j, t_t_conditions);
-                if(tmp<min_card){
-                    min_card=tmp;
-                    min_ip=i;
-                    min_jp=j;
+
+    // 本次查询了多张表，需要做join操作
+    //递归笛卡尔
+    size = tuple_sets.size();
+    int count[size];
+    int height = 0;
+    memset(count, 0, size * sizeof(int));
+    std::vector<Tuple *> stack;
+    bool flag = true;
+    while (flag) {//没有数据会bug
+        if (height != size) {
+            if (count[height] >= tuple_sets.at(height).size()) {
+                break;
+            }
+            stack.emplace_back(tuple_sets.at(height).get(count[height]));
+            count[height]++;
+            height++;
+            continue;
+        }
+        if (height == size) {
+            //输出tuple 如果符合条件
+            Tuple tuple;//先进行判断再add
+            bool add = do_filter(&stack, filters, filter_num);
+            if (add) {//向输出里加入
+                std::vector<std::shared_ptr<TupleValue>> values;
+                for (int i = 0; i < out_schema.fields().size(); i++) {
+                    values.emplace_back(stack[map[i].table]->values()[map[i].value]);
                 }
+                tuple.add(values);
+                tupleSet.add(std::move(tuple));
+            }
+            stack.pop_back();
+            height--;
+            while (count[height] >= tuple_sets.at(height).size()) {
+                if (height == 0) {
+                    flag = false;
+                    break;
+                }
+                stack.pop_back();
+                count[height] = 0;
+                height--;
             }
         }
-        TupleSet tmpSet;
-        TupleSchema schema;
-        schema.append((*min_ip).get_schema());
-        schema.append(min_jp->get_schema());
-        tmpSet.set_schema(schema);
-        min_ip->join(*min_jp, tmpSet, t_t_conditions);
-        tuple_sets.erase(min_jp);
-        tuple_sets.erase(min_ip);
-        tuple_sets.push_back(std::move(tmpSet));//这个地方可能因为临时变量出问题
     }
-    //连接到输出的映射
-    //构造查询的内容到输出内容的映射
-    int size = out_schema.fields().size();
-    int num = 0;
-    struct out_map map[size];
-    for (int j = 0; j < size; j++) {
-        TupleField field = out_schema.field(j);
-        int id = tuple_sets.front().get_schema().index_of_field(field.table_name(), field.field_name());
-        if (id != -1) {
-            map[num].value = id;
-            num++;
-        }
-    }
-    TupleSet&join_tupleset=tuple_sets.front();
-    //将连接结果映射到输出结果
-    for(int i=0;i<join_tupleset.size();i++){
-        Tuple* tuple=join_tupleset.get(i);
-        Tuple addtuple;
-        std::vector<std::shared_ptr<TupleValue>> values;
-        values.reserve(out_schema.fields().size());
-        for (size_t j = 0; j < out_schema.fields().size(); j++) {
-            values.push_back(tuple->get_pointer(map[j].value));
-        }
-        addtuple.add(values);
-        tupleSet.add(std::move(addtuple));
-    }
-        //处理聚合查询的输出
+
+    //处理聚合查询的输出
     if (selects.attributes[0].aggType != Null) {//TODO 这个地方可能在分组时出错
         //表头输出
-        for (
-                int i = 0;
-                i < selects.attr_num - 1; i++) {
-            out_agg_type(selects
-                                 .attributes[i].aggType, ss);
+        for (int i = 0; i < selects.attr_num - 1; i++) {
+            out_agg_type(selects.attributes[i].aggType, ss);
             ss << "(";
             if (selects.attributes[i].relation_name != nullptr) {
                 ss << selects.attributes[i].relation_name << ".";
             }
             ss << selects.attributes[i].attribute_name << ")" << " | ";
         }
-        out_agg_type(selects
-                             .attributes[selects.attr_num - 1].aggType, ss);
+        out_agg_type(selects.attributes[selects.attr_num - 1].aggType, ss);
         ss << "(";
         if (selects.attributes[selects.attr_num - 1].relation_name != nullptr) {
             ss << selects.attributes[selects.attr_num - 1].relation_name << ".";
         }
-        ss << selects.attributes[selects.attr_num - 1].attribute_name << ")" <<
-           std::endl;
-            //没有元组直接返回
-        if (tupleSet.
-
-                size()
-
-            == 0) {
-            return
-                    RC::SUCCESS;
+        ss << selects.attributes[selects.attr_num - 1].attribute_name << ")" << std::endl;
+        //没有元组直接返回
+        if (tupleSet.size() == 0) {
+            return RC::SUCCESS;
         }
-        for (
-                int i = 0;
-                i < selects.attr_num - 1; i++) {
+        for (int i = 0; i < selects.attr_num - 1; i++) {
             RelAttr attr = selects.attributes[i];
-            for (
-                    int j = 0;
-                    j < tuple_sets.
-
-                            size();
-
-                    j++) {
+            for (int j = 0; j < tuple_sets.size(); j++) {
                 int id;
-                if (
-                        strcmp(attr
-                                       .attribute_name, "*") == 0) {
-                    cal_agg(tupleSet,
-                            -1, attr.aggType, ss);
+                if (strcmp(attr.attribute_name, "*") == 0) {
+                    cal_agg(tupleSet, -1, attr.aggType, ss);
                     break;
                 } else {
                     if (attr.relation_name == nullptr) {//如果是*怎么办
@@ -724,8 +664,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                     }
 
                     if (id != -1) {
-                        cal_agg(tupleSet, id, attr
-                                .aggType, ss);
+                        cal_agg(tupleSet, id, attr.aggType, ss);
                         break;
                     }
                 }
@@ -733,21 +672,12 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             }
             ss << " | ";
         }
-//输出最后一个
+        //输出最后一个
         RelAttr attr = selects.attributes[selects.attr_num - 1];
-        for (
-                int j = 0;
-                j < tuple_sets.
-
-                        size();
-
-                j++) {
+        for (int j = 0; j < tuple_sets.size(); j++) {
             int id;
-            if (
-                    strcmp(attr
-                                   .attribute_name, "*") == 0) {
-                cal_agg(tupleSet,
-                        -1, attr.aggType, ss);
+            if (strcmp(attr.attribute_name, "*") == 0) {
+                cal_agg(tupleSet, -1, attr.aggType, ss);
                 break;
             } else {
                 if (attr.relation_name == nullptr) {
@@ -757,20 +687,15 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 }
 
                 if (id != -1) {
-                    cal_agg(tupleSet, id, attr
-                            .aggType, ss);
+                    cal_agg(tupleSet, id, attr.aggType, ss);
                 }
             }
         }
-        ss <<
-           std::endl;
+        ss << std::endl;
     } else {
-//建立排序
+        //建立排序
         Tuple::clear();
-
-        for (
-                int i = selects.order_num - 1;
-                i >= 0; i--) {
+        for (int i =  selects.order_num-1; i>=0; i--) {
             RelAttr attr = selects.orders[i];
             int id;
             if (attr.relation_name == nullptr) {
@@ -780,46 +705,28 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 id = out_schema.index_of_field(attr.relation_name, attr.attribute_name);
             }
             if (id != -1) {
-                Tuple::append_order_attr(id, selects
-                        .ascs[i]);
+                Tuple::append_order_attr(id, selects.ascs[i]);
             } else {
-                return
-                        RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
+                return RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
             }
         }
-        if (order_size != 0) {
-            tupleSet.
-
-                    sort();
-
+        if(order_size!=0){
+            tupleSet.sort();
         }
 
-        if (old_tuple_set_szie > 1) {
-//表的打印
-            tupleSet.
-                    print_with_table(ss);
+        if (tuple_sets.size() > 1) {
+            //表的打印
+            tupleSet.print_with_table(ss);
         } else {
-            tupleSet.
-                    print(ss);
+            tupleSet.print(ss);
         }
     }
-    for (
-        SelectExeNode *&tmp_node
-            : select_nodes) {
-        delete
-                tmp_node;
+    for (SelectExeNode *&tmp_node: select_nodes) {
+        delete tmp_node;
     }
-    session_event->
-            set_response(ss
-                                 .
-
-                                         str()
-
-    );
-    end_trx_if_need(session, trx,
-                    true);
-    return
-            rc;
+    session_event->set_response(ss.str());
+    end_trx_if_need(session, trx, true);
+    return rc;
 }
 
 bool match_table(const Selects &selects, const char *table_name_in_condition, const char *table_name_to_match) {
