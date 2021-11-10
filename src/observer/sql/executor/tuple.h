@@ -253,7 +253,7 @@ public:
     const Tuple &get(int index) const;
 
     const std::string &getData(int index) const;
-
+    void join(TupleSet&other,TupleSet&ret,std::vector<Condition>conditions);
     Tuple *get(int index);
 
     const std::vector<Tuple> &tuples() const;

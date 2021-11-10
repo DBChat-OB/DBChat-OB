@@ -16,7 +16,64 @@ See the Mulan PSL v2 for more details. */
 #include "sql/executor/tuple.h"
 #include "storage/common/table.h"
 #include "common/log/log.h"
+struct filter_map {
+    int left_table;
+    int right_table;
+    int right_value;
+    int left_value;
+    CompOp op;
+};
+bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
+    for (int i = 0; i < num; i++) {
+        int ret;
+        ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
+                tuples[filters[i].right_table]->get(filters[i].right_value));
+        switch (filters[i].op) {
+            case CompOp::EQUAL_TO: {
+                if (ret != 0) {
+                    return false;
+                }
+                break;
+            }
 
+            case CompOp::GREAT_EQUAL: {
+                if (ret < 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::GREAT_THAN: {
+                if (ret <= 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::LESS_EQUAL: {
+                if (ret > 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::LESS_THAN: {
+                if (ret >= 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::NOT_EQUAL: {
+                if (ret == 0) {
+                    return false;
+                }
+                break;
+            }
+            case CompOp::NO_OP:
+                break;
+
+        }
+
+    }
+    return true;
+}
 Tuple::Tuple(const Tuple &other) {
     LOG_PANIC("Copy constructor of tuple is not supported");
     exit(1);
@@ -50,10 +107,8 @@ void Tuple::add(std::vector<std::shared_ptr<TupleValue>> other) {
 }
 
 void Tuple::add(Tuple *tuple) {
-    int size = tuple->values_.size();
-    for (int i = 0; i < size; i++) {
-        add(reinterpret_cast<Tuple *>(&(tuple->values_.at(i))));
-    }
+    add(tuple->values_);
+
 }
 
 void Tuple::add(int value) {
@@ -204,7 +259,56 @@ void TupleSet::add(Tuple &&tuple) {
     tuples_.emplace_back(std::move(tuple));
 }
 
+void TupleSet::join(TupleSet&other,TupleSet&ret,std::vector<Condition>conditions)  {
 
+    struct filter_map filters[MAX_NUM];
+    int filter_size = 0;
+    TupleSet *tupleSets[2];
+    tupleSets[0] = this;
+    tupleSets[1] = &other;
+    //先选出位于这两表的属性 建立filter映射
+    for (int i = 0; i < conditions.size(); i++) {
+        Condition condition = conditions[i];
+        int left_id;
+        int right_id;
+        if ((left_id = this->get_schema().index_of_field(condition.left_attr.relation_name,
+                                                         condition.left_attr.attribute_name)) != -1 &&
+            (right_id = other.get_schema().index_of_field(condition.right_attr.relation_name,
+                                                          condition.right_attr.attribute_name)) != -1) {
+            filters[filter_size].left_table = 0;
+            filters[filter_size].right_table = 1;
+            filters[filter_size].left_value = left_id;
+            filters[filter_size].right_value = right_id;
+            filters[filter_size].op = condition.comp;
+            filter_size++;
+        } else if ((left_id = other.get_schema().index_of_field(condition.left_attr.relation_name,
+                                                                condition.left_attr.attribute_name)) != -1 &&
+                   (right_id = this->get_schema().index_of_field(condition.right_attr.relation_name,
+                                                                 condition.right_attr.attribute_name)) != -1) {
+            filters[filter_size].left_table = 1;
+            filters[filter_size].right_table = 0;
+            filters[filter_size].left_value = left_id;
+            filters[filter_size].right_value = right_id;
+            filters[filter_size].op = condition.comp;
+            filter_size++;
+        }
+    }
+    //对每个元组进行过滤
+    for (int i = 0; i < this->size(); i++) {
+        for (int j = 0; j < other.size(); j++) {
+            Tuple *tuples[2];
+            tuples[0] = this->get(i);
+            tuples[1] = other.get(j);
+            bool add = do_filter(tuples, filters, filter_size);
+            if(add){
+                Tuple tuple;
+                tuple.add(tuples[0]);
+                tuple.add(tuples[1]);
+                ret.add(std::move(tuple));
+            }
+        }
+    }
+}
 void TupleSet::clear() {
     tuples_.clear();
     schema_.clear();
