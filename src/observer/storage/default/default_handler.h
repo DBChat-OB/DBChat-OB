@@ -100,9 +100,10 @@ public:
    * @param indexName
    * @param relName
    * @param attrName
+   * @param unique_attr 该索引是否为unique
    * @return
    */
-  RC create_index(Trx *trx, const char *dbname, const char *relation_name, const char *index_name, const char *attribute_name);
+  RC create_index(Trx *trx, const char *dbname, const char *relation_name, const char *index_name, const char *attribute_name, bool unique_attr);
 
   /**
    * 该函数用来删除名为indexName的索引。

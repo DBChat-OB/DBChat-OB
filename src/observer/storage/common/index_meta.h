@@ -29,13 +29,13 @@ class IndexMeta {
 public:
   IndexMeta() = default;
 
-  RC init(const char *name, const FieldMeta &field);
+  RC init(const char *name, const FieldMeta &field, bool unique_attr = false);
 
 public:
   const char *name() const;
   const char *field() const;
-
   void desc(std::ostream &os) const;
+  bool is_unique() const;
 public:
   void to_json(Json::Value &json_value) const;
   static RC from_json(const TableMeta &table, const Json::Value &json_value, IndexMeta &index);
@@ -43,5 +43,6 @@ public:
 private:
   std::string       name_;
   std::string       field_;
+  bool              unique_;
 };
 #endif // __OBSERVER_STORAGE_COMMON_INDEX_META_H__
