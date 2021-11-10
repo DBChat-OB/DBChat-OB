@@ -242,7 +242,6 @@ public:
 
     void add(Tuple &&tuple);
 
-    void add(Tuple *tuple);
 
     void clear();
 
@@ -261,7 +260,7 @@ public:
     void print(std::ostream &os) const;
 
     void print_with_table(std::ostream &os) const;
-
+    void join(TupleSet &other,TupleSet&ret,std::vector<Condition> &conditions);
     void sort() {
         std::sort(tuples_.begin(), tuples_.end(), comp);
     }
