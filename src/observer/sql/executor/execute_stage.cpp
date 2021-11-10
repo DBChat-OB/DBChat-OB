@@ -623,7 +623,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
         //选取连接的表
         for (std::vector<TupleSet>::iterator i = tuple_sets.begin(); i != tuple_sets.end(); i++) {
             for (std::vector<TupleSet>::iterator j = i + 1; j != tuple_sets.end(); j++) {
-                int tmp = cal_card(*i, *j, t_t_conditions);
+                int tmp = cal_card(*i, *j, t_t_conditions);//
                 if(tmp<min_card){
                     min_card=tmp;
                     min_ip=i;
