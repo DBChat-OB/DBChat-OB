@@ -645,9 +645,9 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
                 break;
             } else {
                 if (attr.relation_name == nullptr) {
-                    id = tuple_sets.at(j).get_schema().index_of_field(selects.relations[j], attr.attribute_name);
+                    id = out_schema.index_of_field(selects.relations[j], attr.attribute_name);
                 } else {
-                    id = tuple_sets.at(j).get_schema().index_of_field(attr.relation_name, attr.attribute_name);
+                    id = out_schema.index_of_field(attr.relation_name, attr.attribute_name);
                 }
 
                 if (id != -1) {
@@ -678,7 +678,7 @@ RC ExecuteStage::do_select(const char *db, Query *sql, SessionEvent *session_eve
             tupleSet.sort();
         }
 
-        if (tuple_sets.size() > 1) {
+        if (old_tuple_set_szie > 1) {
             //表的打印
             tupleSet.print_with_table(ss);
         } else {
