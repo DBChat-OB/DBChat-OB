@@ -259,7 +259,7 @@ void TupleSet::add(Tuple &&tuple) {
     tuples_.emplace_back(std::move(tuple));
 }
 
-void TupleSet::join(TupleSet&other,TupleSet&ret,std::vector<Condition>conditions)  {
+void TupleSet::join(TupleSet&other,TupleSet&ret,std::vector<Condition>&conditions)  {
 
     struct filter_map filters[MAX_NUM];
     int filter_size = 0;
