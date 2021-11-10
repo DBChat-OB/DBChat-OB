@@ -157,6 +157,23 @@ RC DefaultHandler::insert_record(Trx *trx, const char *dbname, const char *relat
 
   return table->insert_record(trx, value_num, values);
 }
+
+RC DefaultHandler::insert_record(Trx *trx, const char *dbname, const char *relation_name, int tuple_count, const LexTuple *tuples) {
+  Table *table = find_table(dbname, relation_name);
+  if (nullptr == table) {
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  RC err = RC::SUCCESS; // last error
+  for (size_t i = 0; i < tuple_count; ++i) {
+    if ((err = table->insert_record(trx, (int)tuples[i].count, tuples[i].values)) != RC::SUCCESS) {
+      LOG_ERROR("Cannot insert #%u tuple.", i);
+      break;
+    }
+  }
+  return err; // 返回最后一个错误
+}
+
 RC DefaultHandler::delete_record(Trx *trx, const char *dbname, const char *relation_name,
                                  int condition_num, const Condition *conditions, int *deleted_count) {
   Table *table = find_table(dbname, relation_name);
