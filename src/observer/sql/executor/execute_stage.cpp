@@ -431,6 +431,9 @@ bool condition_match(Condition &a,Condition&b,Condition& ret){
 int cal_card(TupleSet &a, TupleSet &b, std::vector<Condition> conditions) {
     //查找连接条件
     int ret=a.size()*b.size();
+    if(std::max(a.size(),b.size())==0){
+        return 0;
+    }
     for (int i = 0; i < conditions.size(); i++) {
         Condition condition = conditions[i];
         int left_id;
