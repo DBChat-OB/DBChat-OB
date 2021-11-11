@@ -806,6 +806,10 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid) {
   BPPageHandle page_handle;
   char *pdata,*key;
   IndexNode *leaf;
+  RID tempRID;
+  //BplusTreeHandler::print_tree();
+  if(BplusTreeHandler::get_entry(pkey,&tempRID)==RC::SUCCESS)
+      return RC::RECORD_DUPLICATE_KEY;
   if(nullptr == disk_buffer_pool_){
     return RC::RECORD_CLOSED;
   }
@@ -899,7 +903,8 @@ RC BplusTreeHandler::get_entry(const char *pkey,RID *rid) {
 
   leaf = get_index_node(pdata);
   for(i=0;i<leaf->key_num;i++){
-    if(CmpKey(file_header_.attr_type, file_header_.attr_length,key,leaf->keys+(i*file_header_.key_length))==0){
+    //if(CmpKey(file_header_.attr_type, file_header_.attr_length,key,leaf->keys+(i*file_header_.key_length))==0){
+    if(CompareKey(key,leaf->keys+(i*file_header_.key_length),file_header_.attr_type,file_header_.attr_length)==0){
       memcpy(rid,leaf->rids+i,sizeof(RID));
       free(key);
       return SUCCESS;
