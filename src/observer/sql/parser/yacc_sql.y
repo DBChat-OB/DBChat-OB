@@ -141,7 +141,7 @@ ParserContext *get_context(yyscan_t scanner)
         NOT
         IS
 
-	GROUP
+        GROUP
 
 %union {
   struct _Attr *attr;
@@ -171,7 +171,7 @@ ParserContext *get_context(yyscan_t scanner)
 
 commands:		//commands or sqls. parser starts here.
     /* empty */
-    | commands command
+    | commands command SEMICOLON
     ;
 
 command:
@@ -203,66 +203,66 @@ command:
     ;
 
 exit:			
-    EXIT SEMICOLON {
+    EXIT {
         CONTEXT->ssql->flag=SCF_EXIT;//"exit";
     };
 
 help:
-    HELP SEMICOLON {
+    HELP {
         CONTEXT->ssql->flag=SCF_HELP;//"help";
     };
 
 sync:
-    SYNC SEMICOLON {
+    SYNC {
       CONTEXT->ssql->flag = SCF_SYNC;
     }
     ;
 
 begin:
-    TRX_BEGIN SEMICOLON {
+    TRX_BEGIN {
       CONTEXT->ssql->flag = SCF_BEGIN;
     }
     ;
 
 commit:
-    TRX_COMMIT SEMICOLON {
+    TRX_COMMIT {
       CONTEXT->ssql->flag = SCF_COMMIT;
     }
     ;
 
 rollback:
-    TRX_ROLLBACK SEMICOLON {
+    TRX_ROLLBACK {
       CONTEXT->ssql->flag = SCF_ROLLBACK;
     }
     ;
 
 drop_table:		/*drop table 语句的语法解析树*/
-    DROP TABLE ID SEMICOLON {
+    DROP TABLE ID {
         CONTEXT->ssql->flag = SCF_DROP_TABLE;//"drop_table";
         drop_table_init(&CONTEXT->ssql->sstr.drop_table, $3);
     };
 
 show_tables:
-    SHOW TABLES SEMICOLON {
+    SHOW TABLES {
       CONTEXT->ssql->flag = SCF_SHOW_TABLES;
     }
     ;
 
 desc_table:
-    DESC ID SEMICOLON {
+    DESC ID {
       CONTEXT->ssql->flag = SCF_DESC_TABLE;
       desc_table_init(&CONTEXT->ssql->sstr.desc_table, $2);
     }
     ;
 
 create_index:		/*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON 
+    CREATE INDEX ID ON ID LBRACE ID RBRACE
 		{
 			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
 			create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5, $7, false);
 		}
 		|
-		CREATE UNIQUE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON
+		CREATE UNIQUE INDEX ID ON ID LBRACE ID RBRACE
 		{
 			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
                         create_index_init(&CONTEXT->ssql->sstr.create_index, $4, $6, $8, true);
@@ -270,14 +270,14 @@ create_index:		/*create index 语句的语法解析树*/
     ;
 
 drop_index:			/*drop index 语句的语法解析树*/
-    DROP INDEX ID  SEMICOLON 
+    DROP INDEX ID
 		{
 			CONTEXT->ssql->flag=SCF_DROP_INDEX;//"drop_index";
 			drop_index_init(&CONTEXT->ssql->sstr.drop_index, $3);
 		}
     ;
 create_table:		/*create table 语句的语法解析树*/
-    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE SEMICOLON 
+    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE
 		{
 			CONTEXT->ssql->flag=SCF_CREATE_TABLE;//"create_table";
 			// CONTEXT->ssql->sstr.create_table.attribute_count = CONTEXT->value_length;
@@ -356,7 +356,7 @@ ID_get:
 
 	
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES tuple { insert_tuple_add(CONTEXT); } tuple_list SEMICOLON
+    INSERT INTO ID VALUES tuple { insert_tuple_add(CONTEXT); } tuple_list
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
@@ -403,7 +403,7 @@ value:
     ;
     
 delete:		/*  delete 语句的语法解析树*/
-    DELETE FROM ID where SEMICOLON 
+    DELETE FROM ID where
 		{
 			CONTEXT->ssql->flag = SCF_DELETE;//"delete";
 			deletes_init_relation(&CONTEXT->ssql->sstr.deletion, $3);
@@ -413,7 +413,7 @@ delete:		/*  delete 语句的语法解析树*/
     }
     ;
 update:			/*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where SEMICOLON
+    UPDATE ID SET ID EQ value where
 		{
 			CONTEXT->ssql->flag = SCF_UPDATE;//"update";
 			Value *value = &CONTEXT->values[0];
@@ -423,7 +423,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM relations where orders groups SEMICOLON
+    SELECT select_attr FROM relations where orders groups
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_conditions(&CONTEXT->ssql->sstr.selection, CONTEXT->conditions, CONTEXT->condition_length);
@@ -841,7 +841,7 @@ comOp:
     ;
 
 load_data:
-		LOAD DATA INFILE SSS INTO TABLE ID SEMICOLON
+		LOAD DATA INFILE SSS INTO TABLE ID
 		{
 		  CONTEXT->ssql->flag = SCF_LOAD_DATA;
 			load_data_init(&CONTEXT->ssql->sstr.load_data, $7, $4);
