@@ -742,7 +742,7 @@ condition:
 			// $$->right_value = *$3;
 
 		}
-	|ID comOp ID 
+	|ID comOp ID
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
@@ -895,14 +895,14 @@ subQuery:
 			CONTEXT->ssql = calloc(1, sizeof(Query)); // 临时的Query对象，在恢复上下文时被销毁
 			CONTEXT->condition_length = 0;
 			memset(CONTEXT->conditions, '\0', sizeof(CONTEXT->conditions)); // 清零缓冲区，便于debug
-			
+
 		}
 		select
 		{
 		    // 恢复上下文
 		    // 现在ssql中保存的是子查询的上下文，CONTEXT内的诸如condition_length等变量已被select的语义动作
 		    // 给移动到CONTEXT->ssql->sstr.selection内了，现只需将其转移到新的缓冲区中，并free掉、替换为父查询语句的上下文
-		    
+
 			// 把子查询复制出来
 			Selects *sub_sel = malloc(sizeof(Selects));
 			assert(sub_sel != NULL);
