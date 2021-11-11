@@ -103,7 +103,7 @@ QUOTE            [\'\"]
 ">"                                         RETURN_TOKEN(GT);
 {QUOTE}[\40\42\47A-Za-z0-9_/\.\-]*{QUOTE}   yylval->string=strdup(yytext); RETURN_TOKEN(SSS);
 
-.						                    printf("Unknown character [%c]\n",yytext[0]); return yytext[0];
+.                                           printf("Unknown character [%c]\n",yytext[0]); return yytext[0];
 %%
 
 void scan_string(const char *str, yyscan_t scanner) {
