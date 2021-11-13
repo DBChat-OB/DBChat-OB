@@ -613,7 +613,9 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
         return rc;
     //删除原来表中的所有满足条件的行
     int delete_num;
-    delete_record(trx,&condition_filter,&delete_num);
+    rc = delete_record(nullptr,&condition_filter,&delete_num);
+    if (rc!=RC::SUCCESS)
+        return rc;
     //更改过滤出来的每个tuple的属性值,并且生成record的同时一条条插入table
 //    std::vector<Tuple> tuples;
     int tuple_size = tuple_set.size();
@@ -645,10 +647,12 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
         }
         Record record;
         record.data = record_char;
-        insert_record(trx,&record);
+        rc = insert_record(trx,&record);
+        if (rc!=RC::SUCCESS)
+            return rc;
         *updated_count++;
     }
-    return rc;
+    return RC::SUCCESS;
 }
 
 class RecordDeleter {

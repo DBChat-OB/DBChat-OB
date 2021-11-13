@@ -800,7 +800,7 @@ RC BplusTreeHandler::insert_into_new_root(PageNum left_page, const char *pkey, P
   return SUCCESS;
 }
 
-RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid) {
+RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_attr) {
   RC rc;
   PageNum leaf_page;
   BPPageHandle page_handle;
@@ -808,7 +808,7 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid) {
   IndexNode *leaf;
   RID tempRID;
   //BplusTreeHandler::print_tree();
-  if(BplusTreeHandler::get_entry(pkey,&tempRID)==RC::SUCCESS)
+  if(unique_attr&&(BplusTreeHandler::get_entry(pkey,&tempRID)==RC::SUCCESS))
       return RC::RECORD_DUPLICATE_KEY;
   if(nullptr == disk_buffer_pool_){
     return RC::RECORD_CLOSED;
