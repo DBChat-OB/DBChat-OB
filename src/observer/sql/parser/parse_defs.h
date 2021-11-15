@@ -40,6 +40,8 @@ typedef enum {
     LESS_THAN,    //"<"     3
     GREAT_EQUAL,  //">="    4
     GREAT_THAN,   //">"     5
+    IS_CompOP,
+    IS_NOT_CompOP,
     NO_OP
 } CompOp;
 
@@ -52,6 +54,7 @@ typedef enum {
 typedef struct _Value {
     AttrType type;  // type of value
     void *data;     // value
+    bool null_attr;
 } Value;
 
 #define MAX_TUPLES_ONE_INSERTION 30
@@ -115,6 +118,7 @@ typedef struct {
     char *name;     // Attribute name
     AttrType type;  // Type of attribute
     size_t length;  // Length of attribute
+    bool nullable;
 } AttrInfo;
 
 // struct of craete_table
@@ -204,13 +208,14 @@ void relation_attr_destroy(RelAttr *relation_attr);
 void value_init_integer(Value *value, int v);
 void value_init_float(Value *value, float v);
 void value_init_string(Value *value, const char *v);
+void value_init_null(Value *value);
 void value_destroy(Value *value);
 
 void condition_init(Condition *condition, CompOp comp, int left_is_attr, RelAttr *left_attr, Value *left_value,
                     int right_is_attr, RelAttr *right_attr, Value *right_value);
 void condition_destroy(Condition *condition);
 
-void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length);
+void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length, bool nullable);
 void attr_info_destroy(AttrInfo *attr_info);
 
 void selects_init(Selects *selects, ...);
