@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #ifndef __OBSERVER_SQL_EXECUTOR_VALUE_H_
 #define __OBSERVER_SQL_EXECUTOR_VALUE_H_
-
+#define EPSILON 1e-6
 #include <string.h>
 
 #include <string>
@@ -39,16 +39,29 @@ public:
 
     virtual void  get_data(void * &ptr)const = 0;
 
+    void set_null(bool null_attr);
+
+    virtual bool is_null()const = 0;
+
+protected:
+    bool null_attr_;
+
 private:
 };
 
 class IntValue : public TupleValue {
 public:
-    explicit IntValue(int value) : value_(value) {
+    explicit IntValue(int value, bool null_attr) : value_(value) {
+        null_attr_ = null_attr;
     }
 
     void to_string(std::ostream &os) const override {
-        os << value_;
+        if(null_attr_) {
+            os << "null";
+        }
+        else {
+            os << value_;
+        }
     }
 
     int getIValue()  const override {
@@ -69,6 +82,13 @@ public:
         ptr = (void *)&value_;
     }
 
+    void set_null(bool null_attr) {
+        null_attr_ = null_attr;
+    }
+
+    bool is_null() const override{
+        return null_attr_;
+    }
 
 private:
     int value_;
@@ -76,11 +96,17 @@ private:
 
 class FloatValue : public TupleValue {
 public:
-    explicit FloatValue(float value) : value_(value) {
+    explicit FloatValue(float value, bool null_attr) : value_(value) {
+        null_attr_ = null_attr;
     }
 
     void to_string(std::ostream &os) const override {
-        os << value_;
+        if(null_attr_) {
+            os << "null";
+        }
+        else {
+            os << value_;
+        }
     }
 
     int getIValue()  const override {
@@ -94,10 +120,10 @@ public:
         const FloatValue &float_other = (const FloatValue &) other;
         float result = value_ - float_other.value_;
 
-        if (result > 0) { // 浮点数没有考虑精度问题
+        if (result > EPSILON) {
             return 1;
         }
-        if (result < 0) {
+        if (result < -EPSILON) {
             return -1;
         }
         return 0;
@@ -107,22 +133,36 @@ public:
         ptr = (void *)&value_;
     }
 
+    void set_null(bool null_attr) {
+        null_attr_ = null_attr;
+    }
+
+    bool is_null() const override{
+        return null_attr_;
+    }
+
 public:
     float value_;
 };
 
 class StringValue : public TupleValue {
 public:
-    StringValue(const char *value, int len) : value_(value, len) {
+    StringValue(const char *value, int len, bool null_attr) : value_(value, len) {
         memset(value_c_str,0,20);
         strcpy(value_c_str,value);
+        null_attr_ = null_attr;
     }
 
     explicit StringValue(const char *value) : value_(value) {
     }
 
     void to_string(std::ostream &os) const override {
-        os << value_;
+        if(null_attr_) {
+            os << "null";
+        }
+        else {
+            os << value_;
+        }
     }
     int getIValue()  const override {
         return -1;
@@ -139,6 +179,14 @@ public:
         ptr = (void *)&value_c_str;
     }
 
+    void set_null(bool null_attr) {
+        null_attr_ = null_attr;
+    }
+
+    bool is_null() const override{
+        return null_attr_;
+    }
+
 private:
     std::string value_;
     char  value_c_str[20];
@@ -146,17 +194,23 @@ private:
 
 class DateValue : public TupleValue {
 public:
-    explicit DateValue(unsigned int value) : value_(value) {
+    explicit DateValue(unsigned int value, bool null_attr) : value_(value) {
+        null_attr_ = null_attr;
     }
     explicit DateValue(time_t value) {
         this->value_ = value&&0x00000000ffffffff;
     }
     void to_string(std::ostream &os) const override {
-        time_t time = value_;
-        struct tm * timeinfo = gmtime(&time); //使用gmt时间
-        char ret [20];
-        strftime(ret,20,"%Y-%m-%d",timeinfo); //格式化输出时间
-        os << ret;
+        if(null_attr_) {
+            os << "null";
+        }
+        else {
+            time_t time = value_;
+            struct tm *timeinfo = gmtime(&time); //使用gmt时间
+            char ret[20];
+            strftime(ret, 20, "%Y-%m-%d", timeinfo); //格式化输出时间
+            os << ret;
+        }
     }
 
     int getIValue()  const override {
@@ -173,6 +227,14 @@ public:
 
     void  get_data (void * &ptr) const  override {
         ptr = (void *)&value_;
+    }
+
+    void set_null(bool null_attr){
+        null_attr_ = null_attr;
+    }
+
+    bool is_null() const override{
+        return null_attr_;
     }
 
 private:

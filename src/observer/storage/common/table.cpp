@@ -268,7 +268,12 @@ RC Table::make_record(int value_num, const Value *values, char * &record_out) {
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
+    if (!field->nullable()&&value.null_attr) {
+        return RC::CONSTRAINT_NOTNULL;
+    }
     if (field->type() != value.type) {
+        if(value.null_attr)
+            continue;
         if(field->type()==DATE&&value.type==CHARS){
             continue;
         }
@@ -281,10 +286,18 @@ RC Table::make_record(int value_num, const Value *values, char * &record_out) {
   // 复制所有字段的值
   int record_size = table_meta_.record_size();
   char *record = new char [record_size];
-
+  unsigned int null_attr_true = 0x00000001;
+  unsigned int null_attr_false = 0x00000000;
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
+    if (value.null_attr) {
+        memcpy(record + field->offset()-4, & null_attr_true, 4);
+        continue;
+    }
+    else {
+        memcpy(record + field->offset()-4, & null_attr_false, 4);
+    }
     if(field->type()==DATE&&value.type==CHARS){
         time_t time_value;
         if(mytime::chars_to_date((char*)value.data, time_value))
@@ -556,26 +569,32 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     int field_index = tuple_schema.index_of_field(name(),attribute_name);
     if (field_index==-1)
         return RC::SCHEMA_FIELD_NOT_EXIST;
-    //判断更新的数据类型和对应列的数据类型是否一致
     TupleField tuple_field = tuple_schema.field(field_index);
+    //判断nullable是否一致
+    if (!tuple_field.nullable()&&value->null_attr) {
+        return RC::CONSTRAINT_NOTNULL;
+    }
+    //判断更新的数据类型和对应列的数据类型是否一致
     if (tuple_field.type()!=value->type) {
-        if (!(value->type==CHARS&&tuple_field.type()==DATE)){
-            //如果不是用chars更新date就出错
+        if (!((value->type==CHARS&&tuple_field.type()==DATE)||value->null_attr)){
+            //如果不是用chars更新date就出错,或者新的value是null
             rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
             return rc;
         }
         else{
+            if (!value->null_attr) {
             //确实是用chars更新date
-            time_flag = true;
-            //chars更新date要看日期是否合法。
-            if(mytime::chars_to_date((char*)value->data,time_value)){
-                //合法就保存time值
-                time_int = time_value;
-            }
-            else{
-                //不合法
-                rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
-                return rc;
+                time_flag = true;
+                //chars更新date要看日期是否合法。
+                if(mytime::chars_to_date((char*)value->data,time_value)){
+                    //合法就保存time值
+                    time_int = time_value;
+                }
+                else{
+                    //不合法
+                    rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
+                    return rc;
+                }
             }
         }
     }
@@ -623,6 +642,8 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
 //        tuples.push_back(tuple_set.tuples().at(i));
 //    }
     const int normal_field_start_index = table_meta_.sys_field_num();
+    unsigned int null_attr_true = 0x00000001;
+    unsigned int null_attr_false = 0x00000000;
     for (int i = 0; i<tuple_size; i++){
         //遍历要update的每一行，将每一行都转换成record之后插入
         int record_size = table_meta_.record_size();
@@ -630,11 +651,18 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
         for (int j = 0; j < value_num; ++j) {
             const FieldMeta *field = table_meta_.field(j + normal_field_start_index);
             if (j==field_index) {
-                if(time_flag) {
-                    memcpy(record_char + field->offset(), &time_int, field->len());
+                if(value->null_attr){
+                    memcpy(record_char + field->offset()-4, &null_attr_true, 4);
+                    continue;
                 }
                 else {
-                    memcpy(record_char + field->offset(), value->data, field->len());
+                    memcpy(record_char + field->offset()-4, &null_attr_false, 4);
+                    if(time_flag) {
+                        memcpy(record_char + field->offset(), &time_int, field->len());
+                    }
+                    else {
+                        memcpy(record_char + field->offset(), value->data, field->len());
+                    }
                 }
                 //要更改的列就将新值复制
             }
@@ -643,6 +671,12 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
                 void * ptr;
                 (tuple_set.tuples().at(i)).get_pointer(j).get()->get_data(ptr);
                 memcpy(record_char + field->offset(), ptr, field->len());
+                if((tuple_set.tuples().at(i)).get_pointer(j)->is_null()) {
+                    memcpy(record_char + field->offset()-4, &null_attr_true, 4);
+                }
+                else {
+                    memcpy(record_char + field->offset()-4, &null_attr_false, 4);
+                }
             }
         }
         Record record;

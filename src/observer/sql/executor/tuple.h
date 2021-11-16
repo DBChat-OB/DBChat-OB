@@ -59,15 +59,16 @@ public:
 
     void add(std::vector<std::shared_ptr<TupleValue>> other);
 
-    void add(int value);
+    void add(int value, bool null_attr);
 
-    void add(float value);
+    void add(float value, bool null_attr);
 
-    void add(const char *s, int len);
+    void add(const char *s, int len, bool null_attr);
 
-    void add(unsigned int value);
+    void add(unsigned int value, bool null_attr);
 
-    void add(time_t value);
+    void add(time_t valuem, bool null_attr);
+
 
     bool operator==(Tuple &other) {
         for (int order : orders) {
@@ -152,8 +153,8 @@ static bool comp(const Tuple &a, const Tuple &b) {
 //该类的数组构成tuple的模式
 class TupleField {
 public:
-    TupleField(AttrType type, const char *table_name, const char *field_name) :
-            type_(type), table_name_(table_name), field_name_(field_name) {
+    TupleField(AttrType type, const char *table_name, const char *field_name, bool nullable) :
+            type_(type), table_name_(table_name), field_name_(field_name), nullable_(nullable) {
     }
 
     AttrType type() const {
@@ -168,12 +169,17 @@ public:
         return field_name_.c_str();
     }
 
+    const bool nullable() const {
+        return nullable_;
+    }
+
     std::string to_string() const;
 
 private:
     AttrType type_;
     std::string table_name_;
     std::string field_name_;
+    bool nullable_;
 };
 
 class TupleSchema {
@@ -182,13 +188,13 @@ public:
 
     ~TupleSchema() = default;
 
-    void add(AttrType type, const char *table_name, const char *field_name);
+    void add(AttrType type, const char *table_name, const char *field_name, bool nullable);
 
     int get_field_size() {
         return field_num;
     }
 
-    void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
+    void add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable);
 
     // void merge(const TupleSchema &other);
     void append(const TupleSchema &other);

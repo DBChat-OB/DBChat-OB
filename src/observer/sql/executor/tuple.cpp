@@ -111,24 +111,24 @@ void Tuple::add(Tuple *tuple) {
 
 }
 
-void Tuple::add(int value) {
-    add(new IntValue(value));
+void Tuple::add(int value, bool null_attr) {
+    add(new IntValue(value,null_attr));
 }
 
-void Tuple::add(float value) {
-    add(new FloatValue(value));
+void Tuple::add(float value, bool null_attr) {
+    add(new FloatValue(value,null_attr));
 }
 
-void Tuple::add(const char *s, int len) {
-    add(new StringValue(s, len));
+void Tuple::add(const char *s, int len, bool null_attr) {
+    add(new StringValue(s, len, null_attr));
 }
 
-void Tuple::add(unsigned int value) {
-    add(new DateValue(value));
+void Tuple::add(unsigned int value, bool null_attr) {
+    add(new DateValue(value, null_attr));
 }
 
-void Tuple::add(time_t value) {
-    add(new DateValue(value));
+void Tuple::add(time_t value, bool null_attr) {
+    add(new DateValue(value, null_attr));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,24 +145,24 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
     for (int i = 0; i < field_num; i++) {
         const FieldMeta *field_meta = table_meta.field(i);
         if (field_meta->visible()) {
-            schema.add(field_meta->type(), table_name, field_meta->name());
+            schema.add(field_meta->type(), table_name, field_meta->name(), field_meta->nullable());
         }
     }
 }
 
-void TupleSchema::add(AttrType type, const char *table_name, const char *field_name) {
-    fields_.emplace_back(type, table_name, field_name);
+void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable) {
+    fields_.emplace_back(type, table_name, field_name, nullable);
     field_num++;
 }
 
-void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name) {
+void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable) {
     for (const auto &field: fields_) {
         if (0 == strcmp(field.table_name(), table_name) &&
             0 == strcmp(field.field_name(), field_name)) {
             return;
         }
     }
-    add(type, table_name, field_name);
+    add(type, table_name, field_name,nullable);
 }
 
 void TupleSchema::append(const TupleSchema &other) {
@@ -175,7 +175,7 @@ void TupleSchema::append(const TupleSchema &other) {
 
 void TupleSchema::append_if_not_exists(const TupleSchema &other) {
     for (const auto &field: other.fields()) {
-        add_if_not_exists(field.type(), field.table_name(), field.field_name());
+        add_if_not_exists(field.type(), field.table_name(), field.field_name(),field.nullable());
     }
 }
 
@@ -403,27 +403,26 @@ void TupleRecordConverter::add_record(const char *record) {
     for (const TupleField &field: schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
         assert(field_meta != nullptr);
-
+        bool null_attr = ((*(unsigned *) (record + field_meta->offset()-4))&&0x00000001==0x00000001);
         switch (field_meta->type()) {
             case INTS: {
                 int value = *(int *) (record + field_meta->offset());
-                tuple.add(value);
-
+                tuple.add(value,null_attr);
             }
                 break;
             case FLOATS: {
                 float value = *(float *) (record + field_meta->offset());
-                tuple.add(value);
+                tuple.add(value,null_attr);
             }
                 break;
             case CHARS: {
                 const char *s = record + field_meta->offset();  // 现在当做Cstring来处理
-                tuple.add(s, strlen(s));
+                tuple.add(s, strlen(s),null_attr);
             }
                 break;
             case DATE: {
                 unsigned int value = *(unsigned int *) (record + field_meta->offset());
-                tuple.add(value);
+                tuple.add(value,null_attr);
             }
                 break;
             default: {

@@ -711,7 +711,7 @@ static RC schema_add_field(Table *table, const char *field_name, TupleSchema &sc
         return RC::SCHEMA_FIELD_MISSING;
     }
 
-    schema.add_if_not_exists(field_meta->type(), table->name(), field_meta->name());
+    schema.add_if_not_exists(field_meta->type(), table->name(), field_meta->name(), field_meta->nullable());
     return RC::SUCCESS;
 }
 
@@ -722,7 +722,7 @@ static RC schema_add_field_except_exist(Table *table, const char *field_name, Tu
         return RC::SCHEMA_FIELD_MISSING;
     }
 
-    schema.add(field_meta->type(), table->name(), field_meta->name());
+    schema.add(field_meta->type(), table->name(), field_meta->name(),field_meta->nullable());
     return RC::SUCCESS;
 }
 

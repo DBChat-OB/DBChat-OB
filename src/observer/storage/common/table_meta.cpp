@@ -42,7 +42,7 @@ void TableMeta::swap(TableMeta &other) noexcept{
 RC TableMeta::init_sys_fields() {
   sys_fields_.reserve(1);
   FieldMeta field_meta;
-  RC rc = field_meta.init(Trx::trx_field_name(), Trx::trx_field_type(), 0, Trx::trx_field_len(), false);
+  RC rc = field_meta.init(Trx::trx_field_name(), Trx::trx_field_type(), 4, Trx::trx_field_len(), false, false);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to init trx field. rc = %d:%s", rc, strrc(rc));
     return rc;
@@ -76,11 +76,12 @@ RC TableMeta::init(const char *name, int field_num, const AttrInfo attributes[])
     fields_[i] = sys_fields_[i];
   }
 
-  int field_offset = sys_fields_.back().offset() + sys_fields_.back().len(); // TODO 当前实现下，所有类型都是4字节对齐的，所以不再考虑字节对齐问题
+  int field_offset = sys_fields_.back().offset() + sys_fields_.back().len(); // TODO 当前实现下，所有类型都是4字节对齐的，所以不再考虑字节对齐问题。多出来的4字节用来存放是否为null的标记
 
   for (int i = 0; i < field_num; i++) {
+      field_offset +=4;
     const AttrInfo &attr_info = attributes[i];
-    rc = fields_[i + sys_fields_.size()].init(attr_info.name, attr_info.type, field_offset, attr_info.length, true);
+    rc = fields_[i + sys_fields_.size()].init(attr_info.name, attr_info.type, field_offset, attr_info.length, true, attr_info.nullable);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name);
       return rc;

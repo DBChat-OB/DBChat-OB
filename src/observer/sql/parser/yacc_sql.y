@@ -136,7 +136,7 @@ ParserContext *get_context(yyscan_t scanner)
         JOIN
         UNIQUE
         NULLABLE
-        NULL
+        NULL_K
         NOT
         IS
 
@@ -311,7 +311,7 @@ attr_def:
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
 			CONTEXT->value_length++;
 		}
-	|ID_get type NOT NULL
+	|ID_get type NOT NULL_K
 			{
 				AttrInfo attribute;
 				attr_info_init(&attribute, CONTEXT->id, $2, 4, false);
@@ -394,7 +394,7 @@ value:
 			$1 = substr($1,1,strlen($1)-2);
   		value_init_string(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
-		|NULL {
+		|NULL_K {
 		value_init_null(&CONTEXT->values[CONTEXT->value_length++]);
 		}
     ;
@@ -809,7 +809,7 @@ comOp:
     | GE { CONTEXT->comp = GREAT_EQUAL; }
     | NE { CONTEXT->comp = NOT_EQUAL; }
     | IS { CONTEXT->comp = IS_CompOP; }
-    | IS NOT {CONTEXT->comp = IS_NOT_CompOP}
+    | IS NOT {CONTEXT->comp = IS_NOT_CompOP;}
     ;
 
 load_data:

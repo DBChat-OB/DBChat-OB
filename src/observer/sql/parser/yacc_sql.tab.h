@@ -102,7 +102,7 @@ extern int yydebug;
     JOIN = 308,
     UNIQUE = 309,
     NULLABLE = 310,
-    NULL = 311,
+    NULL_K = 311,
     NOT = 312,
     IS = 313,
     NUMBER = 314,
