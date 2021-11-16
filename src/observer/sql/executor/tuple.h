@@ -70,14 +70,14 @@ public:
     void add(time_t value);
 
     bool operator==(Tuple &other) {
-        for (int order : orders) {
-            if (!values_.at(order)->compare(other.get(order))) {
+        for(int i=0;i<orders.size();i++){
+            int order=orders[i];
+            if (values_.at(order)->compare(other.get(order))!=0) {
                 return false;
             }
         }
         return true;
     }
-
     bool operator<(Tuple &other) {
         for (int order : orders) {
             int ret = values_.at(order)->compare(other.get(order));
@@ -124,9 +124,9 @@ private:
 
 };
 
-static bool comp(const Tuple &a, const Tuple &b) {
+static bool comp(const Tuple *a, const Tuple *b) {
     for (int i = 0; i < orders.size(); i++) {
-        int ret = a.get(orders[i]).compare(b.get(orders[i]));
+        int ret = a->get(orders[i]).compare(b->get(orders[i]));
         if(ascs[i]==1){
             if(ret==0){
                 continue;
@@ -152,18 +152,18 @@ static bool comp(const Tuple &a, const Tuple &b) {
 //该类的数组构成tuple的模式
 class TupleField {
 public:
-    TupleField(AttrType type, const char *table_name, const char *field_name) :
-            type_(type), table_name_(table_name), field_name_(field_name) {
+    TupleField(AttrType type, const char *table_name, const char *field_name,AggType aggType) :
+            type_(type), table_name_(table_name), field_name_(field_name),aggType(aggType) {
     }
-
     AttrType type() const {
         return type_;
     }
-
+    AggType agg_type() const {
+        return aggType;
+    }
     const char *table_name() const {
         return table_name_.c_str();
     }
-
     const char *field_name() const {
         return field_name_.c_str();
     }
@@ -172,6 +172,7 @@ public:
 
 private:
     AttrType type_;
+    AggType aggType;
     std::string table_name_;
     std::string field_name_;
 };
@@ -189,7 +190,7 @@ public:
     }
 
     void add_if_not_exists(AttrType type, const char *table_name, const char *field_name);
-
+    void add_agg(AttrType type, const char *table_name, const char *field_name,AggType aggType);
     // void merge(const TupleSchema &other);
     void append(const TupleSchema &other);
 
@@ -260,8 +261,19 @@ public:
 
     void print_with_table(std::ostream &os) const;
     void join(TupleSet &other,TupleSet&ret,std::vector<Condition> &conditions);
-    void sort() {
-        std::sort(tuples_.begin(), tuples_.end(), comp);
+    void swap(int i,int j){
+        std::swap(tuples_[i],tuples_[j]);
+    }
+    void sort() {//重写排序
+//        for(int i=0;i<tuples_.size();i++){
+//            int min=i;
+//            for(int j=i+1;j<tuples_.size();j++){
+//                if(comp(tuples_[min],tuples_[j])){
+//                    min=j;
+//                }
+//            }
+//            std::swap(tuples_[i],tuples_[min]);
+//        }
     }
 
 public:
