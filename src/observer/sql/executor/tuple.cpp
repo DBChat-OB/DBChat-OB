@@ -151,10 +151,13 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
 }
 
 void TupleSchema::add(AttrType type, const char *table_name, const char *field_name) {
-    fields_.emplace_back(type, table_name, field_name);
+    AggType  aggType=Null;
+    fields_.emplace_back(type, table_name, field_name,aggType);
     field_num++;
 }
-
+void TupleSchema::add_agg(AttrType type, const char *table_name, const char *field_name,AggType aggType){
+    fields_.emplace_back(type, table_name, field_name,aggType);
+}
 void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name) {
     for (const auto &field: fields_) {
         if (0 == strcmp(field.table_name(), table_name) &&
@@ -189,7 +192,26 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name) 
     }
     return -1;
 }
-
+void print_agg(TupleField tupleField,std::ostream &os){
+    switch (tupleField.agg_type()) {
+        case Min:{
+            os<<"min(";
+        }
+            break;
+        case Max:{
+            os<<"max(";
+        }
+            break;
+        case Avg:{
+            os<<"avg(";
+        }
+            break;
+        case Count:{
+            os<<"count(";
+        }
+            break;
+    }
+}
 void TupleSchema::print_with_table(std::ostream &os) const {
     if (fields_.empty()) {
         os << "No schema";
@@ -197,16 +219,24 @@ void TupleSchema::print_with_table(std::ostream &os) const {
     }
     for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
          iter != end; ++iter) {
-
-        os << iter->table_name() << ".";
-
-        os << iter->field_name() << " | ";
+        if((*iter).agg_type()==Null){
+            os << iter->table_name() << ".";
+            os << iter->field_name() << " | ";
+        } else{
+            print_agg(*iter,os);
+            os << iter->table_name() << ".";
+            os << iter->field_name() <<")"<< " | ";
+        }
+    }
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() << std::endl;
+    } else{
+        print_agg(fields_.back(),os);
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() <<")"<< std::endl;
     }
 
-
-    os << fields_.back().table_name() << ".";
-
-    os << fields_.back().field_name() << std::endl;
 }
 
 void TupleSchema::print(std::ostream &os) const {
@@ -214,25 +244,26 @@ void TupleSchema::print(std::ostream &os) const {
         os << "No schema";
         return;
     }
-
     // 判断有多张表还是只有一张表
     std::set<std::string> table_names;
     for (const auto &field: fields_) {
         table_names.insert(field.table_name());
     }
-
     for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
          iter != end; ++iter) {
-        if (table_names.size() > 1) {
-            os << iter->table_name() << ".";
+        if((*iter).agg_type()==Null){
+            os << iter->field_name() << " | ";
+        } else{
+            print_agg(*iter,os);
+            os << iter->field_name() <<")"<< " | ";
         }
-        os << iter->field_name() << " | ";
     }
-
-    if (table_names.size() > 1) {
-        os << fields_.back().table_name() << ".";
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().field_name() << std::endl;
+    } else{
+        print_agg(fields_.back(),os);
+        os << fields_.back().field_name()<<")" << std::endl;
     }
-    os << fields_.back().field_name() << std::endl;
 }
 
 
@@ -320,7 +351,6 @@ void TupleSet::print_with_table(std::ostream &os) const {
         return;
     }
     schema_.print_with_table(os);
-
     for (const Tuple &item: tuples_) {
         const std::vector<std::shared_ptr<TupleValue>> &values = item.values();
         for (std::vector<std::shared_ptr<TupleValue>>::const_iterator iter = values.begin(), end = --values.end();
