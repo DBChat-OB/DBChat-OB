@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #ifndef __OBSERVER_SQL_EXECUTOR_VALUE_H_
 #define __OBSERVER_SQL_EXECUTOR_VALUE_H_
 
+#include <iostream>
+#include <iomanip>
 #include <string.h>
 
 #include <string>
@@ -33,11 +35,11 @@ public:
 
     virtual int compare(const TupleValue &other) const = 0;
 
-    virtual int getIValue()const = 0;
+    virtual int getIValue() const = 0;
 
-    virtual float getFValue()const = 0;
+    virtual float getFValue() const = 0;
 
-    virtual void  get_data(void * &ptr)const = 0;
+    virtual void get_data(void *&ptr) const = 0;
 
 private:
 };
@@ -51,12 +53,14 @@ public:
         os << value_;
     }
 
-    int getIValue()  const override {
+    int getIValue() const override {
         return value_;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return float(value_);
     }
+
     int compare(const TupleValue &other) const override {
 
         const IntValue &int_other = (const IntValue &) other;
@@ -65,8 +69,8 @@ public:
 
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
     }
 
 
@@ -80,13 +84,36 @@ public:
     }
 
     void to_string(std::ostream &os) const override {
-        os << value_;
+        float a = value_;
+        bool flag = true;
+        int z[3];
+        z[0] = int(a);
+        a = a - (int) a;
+        for (int i = 0; i < 2; i++) {
+            a *= 10;
+            z[i + 1] = int(a);
+            if (a - (int) a == 0) {
+                flag = false;
+            }
+            a = a - (int) a;
+        }
+        if (flag) {//如何输出两位
+            if(a*10>=5){
+                z[2]+=1;
+            }
+            float ret = z[0] * 1.0 + z[1] * 0.1 + z[2] * 0.01;
+            os << ret;
+        } else {
+            os << value_;
+        }
+
     }
 
-    int getIValue()  const override {
+    int getIValue() const override {
         return value_;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return (value_);
     }
 
@@ -103,8 +130,8 @@ public:
         return 0;
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
     }
 
 public:
@@ -114,8 +141,8 @@ public:
 class StringValue : public TupleValue {
 public:
     StringValue(const char *value, int len) : value_(value, len) {
-        memset(value_c_str,0,20);
-        strcpy(value_c_str,value);
+        memset(value_c_str, 0, 20);
+        strcpy(value_c_str, value);
     }
 
     explicit StringValue(const char *value) : value_(value) {
@@ -124,55 +151,62 @@ public:
     void to_string(std::ostream &os) const override {
         os << value_;
     }
-    int getIValue()  const override {
+
+    int getIValue() const override {
         return -1;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return -1;
     }
+
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &) other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_c_str;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_c_str;
     }
 
 private:
     std::string value_;
-    char  value_c_str[20];
+    char value_c_str[20];
 };
 
 class DateValue : public TupleValue {
 public:
     explicit DateValue(unsigned int value) : value_(value) {
     }
+
     explicit DateValue(time_t value) {
-        this->value_ = value&&0x00000000ffffffff;
+        this->value_ = value && 0x00000000ffffffff;
     }
+
     void to_string(std::ostream &os) const override {
         time_t time = value_;
-        struct tm * timeinfo = gmtime(&time); //使用gmt时间
-        char ret [20];
-        strftime(ret,20,"%Y-%m-%d",timeinfo); //格式化输出时间
+        struct tm *timeinfo = gmtime(&time); //使用gmt时间
+        char ret[20];
+        strftime(ret, 20, "%Y-%m-%d", timeinfo); //格式化输出时间
         os << ret;
     }
 
-    int getIValue()  const override {
+    int getIValue() const override {
         return value_;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return float(value_);
     }
+
     int compare(const TupleValue &other) const override {
 
         const DateValue &date_other = (const DateValue &) other;
         return value_ - date_other.value_;
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
     }
 
 private:
