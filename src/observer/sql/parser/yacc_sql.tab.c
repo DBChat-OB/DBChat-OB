@@ -2572,7 +2572,7 @@ yyreduce:
 
   case 127:
 #line 811 "yacc_sql.y"
-         { CONTEXT->comp = IS_CompOp; }
+         { CONTEXT->comp = IS_CompOP; }
 #line 2577 "yacc_sql.tab.c"
     break;
 

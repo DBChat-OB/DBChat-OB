@@ -808,7 +808,7 @@ comOp:
     | LE { CONTEXT->comp = LESS_EQUAL; }
     | GE { CONTEXT->comp = GREAT_EQUAL; }
     | NE { CONTEXT->comp = NOT_EQUAL; }
-    | IS { CONTEXT->comp = IS_CompOp; }
+    | IS { CONTEXT->comp = IS_CompOP; }
     | IS NOT {CONTEXT->comp = IS_NOT_CompOP}
     ;
 
