@@ -26,6 +26,7 @@ class ExecuteStage : public common::Stage {
 public:
   ~ExecuteStage();
   static Stage *make_stage(const std::string &tag);
+  static RC sub_select(Selects& selects,TupleSet& ret,Trx *trx);
 
 protected:
   // common function
