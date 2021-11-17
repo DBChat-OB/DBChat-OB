@@ -26,6 +26,7 @@ struct ConDesc {
   int    attr_length; // 如果是属性，表示属性值长度
   int    attr_offset; // 如果是属性，表示在记录中的偏移量
   void * value;       // 如果是值类型，这里记录值的数据
+  bool   is_ue;       // 在初始化的时候此值是否为unevaluated类型。注意，即使是unevaluated，在init的时候也会被计算为实际值
   bool   is_null;
 };
 
@@ -47,7 +48,7 @@ public:
   virtual ~DefaultConditionFilter();
 
   RC init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op);
-  RC init(Table &table, const Condition &condition);
+  RC init(Table &table, const Condition &condition, Trx *trx);
 
   virtual bool filter(const Record &rec) const;
 
@@ -69,12 +70,14 @@ private:
   ConDesc  right_;
   AttrType attr_type_ = UNDEFINED;
   CompOp   comp_op_ = NO_OP;
-  bool     field_type_compare_compatible_table[5][5] = {
-          true, true, true, true, true,
-          true, true, false, false, false,
-          true, false, true, false, false,
-          true, false, false, true, true,
-          true, false, false, true, true
+  bool     field_type_compare_compatible_table[7][7] = {
+          true, true, true, true, true, false, true,
+          true, true, false, false, false, false, true,
+          true, false, true, false, false, false, true,
+          true, false, false, true, true, false, true,
+          true, false, false, true, true, false, true,
+          false, false, false, false, false, false, true,
+          true, true, true, true, true, true, true
   };
 };
 
@@ -84,7 +87,7 @@ public:
   virtual ~CompositeConditionFilter();
 
   RC init(const ConditionFilter *filters[], int filter_num);
-  RC init(Table &table, const Condition *conditions, int condition_num);
+  RC init(Table &table, const Condition *conditions, int condition_num, Trx *trx);
   virtual bool filter(const Record &rec) const;
 
 public:
@@ -101,13 +104,6 @@ private:
   const ConditionFilter **      filters_ = nullptr;
   int                           filter_num_ = 0;
   bool                          memory_owner_ = false; // filters_的内存是否由自己来控制
-  bool     field_type_compare_compatible_table[5][5] = {
-            true, true, true, true, true,
-            true, true, false, false, false,
-            true, false, true, false, false,
-            true, false, false, true, true,
-            true, false, false, true, true
-    };
 };
 
 #endif // __OBSERVER_STORAGE_COMMON_CONDITION_FILTER_H_
