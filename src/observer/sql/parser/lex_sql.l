@@ -91,6 +91,22 @@ QUOTE            [\'\"]
 [Ii][Ss]                                    RETURN_TOKEN(IS);
 [Nn][Oo][Tt]                                RETURN_TOKEN(NOT);
 [Gg][Rr][Oo][Uu][Pp]                        RETURN_TOKEN(GROUP);
+[\+]                                         RETURN_TOKEN(ADD);
+[\-]                                         RETURN_TOKEN(SUB);
+[/]                                         RETURN_TOKEN(SUB);
+
+{ID}							                       yylval->string=strdup(yytext); RETURN_TOKEN(ID);
+"("								                       RETURN_TOKEN(LBRACE);
+")"								                       RETURN_TOKEN(RBRACE);
+
+","                                      RETURN_TOKEN(COMMA);
+"="                                      RETURN_TOKEN(EQ);
+"<="                                     RETURN_TOKEN(LE);
+"<>"                                     RETURN_TOKEN(NE);
+"<"                                      RETURN_TOKEN(LT);
+">="                                     RETURN_TOKEN(GE);
+">"                                      RETURN_TOKEN(GT);
+{QUOTE}[\40\42\47A-Za-z0-9_/\.\-]*{QUOTE}	     yylval->string=strdup(yytext); RETURN_TOKEN(SSS);
 {ID}                                        yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                         RETURN_TOKEN(LBRACE);
 ")"                                         RETURN_TOKEN(RBRACE);

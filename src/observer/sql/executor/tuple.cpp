@@ -23,6 +23,7 @@ struct filter_map {
     int left_value;
     CompOp op;
 };
+
 bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;

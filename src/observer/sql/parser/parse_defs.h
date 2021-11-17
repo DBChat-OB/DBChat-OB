@@ -23,11 +23,35 @@ See the Mulan PSL v2 for more details. */
 #define MAX_ATTR_NAME 20
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
+
+//属性值类型
+typedef enum {
+    UNDEFINED, CHARS, INTS, FLOATS, DATE,
+    UNEVALUATED, // 未被求值的一个抽象值或值表达式，如子SQL语句
+    ATTR_TABLE // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
+} AttrType;
+typedef struct _Value {
+    AttrType type;  // type of value
+    void *data;     // value
+    bool null_attr;
+} Value;
+typedef enum {
+    E,T,F,val,id
+}Extype;
+typedef enum {
+    Sub, Add, Mul, Div,None
+} CalOp;
 typedef enum {
     Max, Min, Count, Avg,Null
 } AggType;
 //属性结构体
-typedef struct {
+typedef struct _relattr{
+    Extype extype;
+    CalOp op;
+    Value value;
+    struct _relattr* first;
+    struct _relattr* second;
+    int id;
     AggType aggType;
     char *relation_name;   // relation name (may be NULL) 表名
     char *attribute_name;  // attribute name              属性名
@@ -47,19 +71,9 @@ typedef enum {
     NO_OP
 } CompOp;
 
-//属性值类型
-typedef enum {
-    UNDEFINED, CHARS, INTS, FLOATS, DATE,
-    UNEVALUATED, // 未被求值的一个抽象值或值表达式，如子SQL语句
-    ATTR_TABLE // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
-} AttrType;
 
-//属性值
-typedef struct _Value {
-    AttrType type;  // type of value
-    void *data;     // value
-    bool null_attr;
-} Value;
+
+
 
 #define MAX_TUPLES_ONE_INSERTION 30
 

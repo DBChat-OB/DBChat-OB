@@ -13,53 +13,123 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <mutex>
+#include <vector>
 #include "sql/parser/parse.h"
 #include "rc.h"
 #include "common/log/log.h"
 
 RC parse(char *st, Query *sqln);
 
+std::vector<RelAttr *> stack;
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name) {
-  if (relation_name != nullptr) {
-    relation_attr->relation_name = strdup(relation_name);
-  } else {
-    relation_attr->relation_name = nullptr;
-  }
-  relation_attr->aggType=Null;
-  relation_attr->attribute_name = strdup(attribute_name);
+void e_e_t(CalOp op) {
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = E;
+    e->op = op;
+    e->first = stack[stack.size() - 2];
+    e->second = stack[stack.size() - 1];
+    stack.pop_back();
+    stack.pop_back();
+    stack.emplace_back(e);
 }
-void relation_agg_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name,AggType aggType){
+void e_t() {
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = E;
+    e->first = stack[stack.size() - 1];
+    e->second = nullptr;
+    e->op = None;
+    stack.pop_back();
+    stack.emplace_back(e);
+}
+void t_t_f(CalOp) {
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = T;
+    e->first = stack[stack.size() - 2];
+    e->second = stack[stack.size() - 1];
+    stack.pop_back();
+    stack.pop_back();
+    stack.emplace_back(e);
+}
+void t_f() {
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = T;
+    e->first = stack[stack.size() - 1];
+    e->second = nullptr;
+    e->op = None;
+    stack.pop_back();
+    stack.emplace_back(e);
+}
+void f_e() {
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = F;
+    e->first = stack[stack.size() - 1];
+    e->second = nullptr;
+    e->op = None;
+    stack.pop_back();
+    stack.emplace_back(e);
+}
+void f_id(Extype extype){
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype = extype;
+    e->first = stack[stack.size() - 1];
+    e->second = nullptr;
+    e->op = None;
+    stack.pop_back();
+    stack.emplace_back(e);
+}
+void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name) {
+    if (relation_name != nullptr) {
+        relation_attr->relation_name = strdup(relation_name);
+    } else {
+        relation_attr->relation_name = nullptr;
+    }
+    relation_attr->aggType = Null;
+    relation_attr->attribute_name = strdup(attribute_name);
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype=id;
+    e->relation_name=relation_attr->relation_name;
+    e->attribute_name=relation_attr->attribute_name;
+    e->aggType=Null;
+    stack.emplace_back(e);
+}
+
+void
+relation_agg_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, AggType aggType) {
     if (relation_name != nullptr) {
         relation_attr->relation_name = strdup(relation_name);
     } else {
         relation_attr->relation_name = nullptr;
     }
     relation_attr->attribute_name = strdup(attribute_name);
-    relation_attr->aggType=aggType;
+    relation_attr->aggType = aggType;
 }
 void relation_attr_destroy(RelAttr *relation_attr) {
-  free(relation_attr->relation_name);
-  free(relation_attr->attribute_name);
-  relation_attr->relation_name = nullptr;
-  relation_attr->attribute_name = nullptr;
+    free(relation_attr->relation_name);
+    free(relation_attr->attribute_name);
+    relation_attr->relation_name = nullptr;
+    relation_attr->attribute_name = nullptr;
 }
 
 void value_init_integer(Value *value, int v) {
-  value->type = INTS;
-  value->data = malloc(sizeof(v));
-  memcpy(value->data, &v, sizeof(v));
+    value->type = INTS;
+    value->data = malloc(sizeof(v));
+    memcpy(value->data, &v, sizeof(v));
+    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    e->extype=val;
+    e->value=*value;
+    e->aggType=Null;
+    stack.emplace_back(e);
 }
 void value_init_float(Value *value, float v) {
-  value->type = FLOATS;
-  value->data = malloc(sizeof(v));
-  memcpy(value->data, &v, sizeof(v));
+    value->type = FLOATS;
+    value->data = malloc(sizeof(v));
+    memcpy(value->data, &v, sizeof(v));
 }
 void value_init_string(Value *value, const char *v) {
-  value->type = CHARS;
-  value->data = strdup(v);
+    value->type = CHARS;
+    value->data = strdup(v);
 }
 void value_init_null(Value *value) {
     value->type = UNDEFINED;
@@ -67,40 +137,40 @@ void value_init_null(Value *value) {
     value->data = nullptr;
 }
 void value_destroy(Value *value) {
-  value->type = UNDEFINED;
-  free(value->data);
-  value->data = nullptr;
+    value->type = UNDEFINED;
+    free(value->data);
+    value->data = nullptr;
 }
 
-void condition_init(Condition *condition, CompOp comp, 
+void condition_init(Condition *condition, CompOp comp,
                     int left_is_attr, RelAttr *left_attr, Value *left_value,
                     int right_is_attr, RelAttr *right_attr, Value *right_value) {
-  condition->comp = comp;
-  condition->left_is_attr = left_is_attr;
-  if (left_is_attr) {
-    condition->left_attr = *left_attr;
-  } else {
-    condition->left_value = *left_value;
-  }
+    condition->comp = comp;
+    condition->left_is_attr = left_is_attr;
+    if (left_is_attr) {
+        condition->left_attr = *left_attr;
+    } else {
+        condition->left_value = *left_value;
+    }
 
-  condition->right_is_attr = right_is_attr;
-  if (right_is_attr) {
-    condition->right_attr = *right_attr;
-  } else {
-    condition->right_value = *right_value;
-  }
+    condition->right_is_attr = right_is_attr;
+    if (right_is_attr) {
+        condition->right_attr = *right_attr;
+    } else {
+        condition->right_value = *right_value;
+    }
 }
 void condition_destroy(Condition *condition) {
-  if (condition->left_is_attr) {
-    relation_attr_destroy(&condition->left_attr);
-  } else {
-    value_destroy(&condition->left_value);
-  }
-  if (condition->right_is_attr) {
-    relation_attr_destroy(&condition->right_attr);
-  } else {
-    value_destroy(&condition->right_value);
-  }
+    if (condition->left_is_attr) {
+        relation_attr_destroy(&condition->left_attr);
+    } else {
+        value_destroy(&condition->left_value);
+    }
+    if (condition->right_is_attr) {
+        relation_attr_destroy(&condition->right_attr);
+    } else {
+        value_destroy(&condition->right_value);
+    }
 }
 
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length, bool nullable) {
@@ -109,46 +179,49 @@ void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t
   attr_info->length = length;
   attr_info->nullable = nullable;
 }
-
 void attr_info_destroy(AttrInfo *attr_info) {
-  free(attr_info->name);
-  attr_info->name = nullptr;
+    free(attr_info->name);
+    attr_info->name = nullptr;
 }
 
 void selects_init(Selects *selects, ...);
-void selects_append_attribute(Selects *selects, RelAttr *rel_attr) {
-  selects->attributes[selects->attr_num++] = *rel_attr;
+void selects_append_attribute_plus(Selects *selects){
+    selects->attributes[selects->attr_num++] = *stack[stack.size()-1];
+    stack.pop_back();
 }
-void selects_append_orders(Selects * selects,RelAttr * rel_attr,int asc){
-    selects->orders[selects->order_num]=*rel_attr;
-    selects->ascs[selects->order_num]=asc;
+void selects_append_attribute(Selects *selects, RelAttr *rel_attr) {
+    selects->attributes[selects->attr_num++] = *rel_attr;
+}
+void selects_append_orders(Selects *selects, RelAttr *rel_attr, int asc) {
+    selects->orders[selects->order_num] = *rel_attr;
+    selects->ascs[selects->order_num] = asc;
     selects->order_num++;
 }
-void selects_set_order(Selects* selects,int order){
-    selects->asc= order;
+void selects_set_order(Selects *selects, int order) {
+    selects->asc = order;
 }
 void selects_append_relation(Selects *selects, const char *relation_name) {
-  for(size_t i=0;i<selects->relation_num;i++){//检查是否重复
-    if(strcmp(selects->relations[i],relation_name)==0){
-      return;
+    for (size_t i = 0; i < selects->relation_num; i++) {//检查是否重复
+        if (strcmp(selects->relations[i], relation_name) == 0) {
+            return;
+        }
     }
-  }
-  selects->relations[selects->relation_num++] = strdup(relation_name);
+    selects->relations[selects->relation_num++] = strdup(relation_name);
 }
 
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num) {
-  assert(condition_num <= sizeof(selects->conditions)/sizeof(selects->conditions[0]));
-  for (size_t i = 0; i < condition_num; i++) {
-    selects->conditions[i] = conditions[i];
-  }
-  selects->condition_num = condition_num;
+    assert(condition_num <= sizeof(selects->conditions) / sizeof(selects->conditions[0]));
+    for (size_t i = 0; i < condition_num; i++) {
+        selects->conditions[i] = conditions[i];
+    }
+    selects->condition_num = condition_num;
 }
 
 void selects_destroy(Selects *selects) {
-  for (size_t i = 0; i < selects->attr_num; i++) {
-    relation_attr_destroy(&selects->attributes[i]);
-  }
-  selects->attr_num = 0;
+    for (size_t i = 0; i < selects->attr_num; i++) {
+        relation_attr_destroy(&selects->attributes[i]);
+    }
+    selects->attr_num = 0;
 
   for (size_t i = 0; i < selects->relation_num; i++) {
     free(selects->relations[i]);

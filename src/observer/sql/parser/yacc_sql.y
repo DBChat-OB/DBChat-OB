@@ -146,6 +146,10 @@ ParserContext *get_context(yyscan_t scanner)
         INNER
         JOIN
         UNIQUE
+	GROUP
+	ADD
+	SUB
+	DIV
 	    GROUP
         NULLABLE
         NULL_K
@@ -206,9 +210,12 @@ command:
 	| order_list
 	| relations
 	| join_list
-	| ATT
 	| groups
 	| group_list
+	| E
+	| T
+	| F
+	| E_
     ;
 
 exit:			
@@ -588,29 +595,58 @@ order_list:
  	relation_attr_init(&attr, $2, $4);
          selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
  };
-ATT:
-	STAR{
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, "*");
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-    	| ID {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, $1);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-  	| ID DOT ID {
-			RelAttr attr;
-			relation_attr_init(&attr, $1, $3);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
+E_:
+E{
+	selects_append_attribute_plus(&CONTEXT->ssql->sstr.selection);
+}
+E:
+	E ADD T{
+		e_e_t(Add);
+	}
+	| E SUB T{
+		e_e_t(Sub);
+	}
+	| T{
+		e_t();
+	}
+T:
+	T STAR F{
+		t_t_f(Mul);
+	}
+	| T DIV F{
+		t_t_f(Div);
+	}
+	| F{
+		t_f();
+	}
+F:
+	LBRACE E RBRACE{
+		f_e();
+	}
+	|STAR{
+        			RelAttr attr;
+        			relation_attr_init(&attr, NULL, "*");
+        			//selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+        | ID {
+        			RelAttr attr;
+        			relation_attr_init(&attr, NULL, $1);
+        			//selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+        | ID DOT ID {
+        			RelAttr attr;
+        			relation_attr_init(&attr, $1, $3);
+        			//selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
         | ID DOT STAR {
-			RelAttr attr;
-			relation_attr_init(&attr, $1, "*");
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-            	}
+        			RelAttr attr;
+        			relation_attr_init(&attr, $1, "*");
+        			//selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+        |value{
+        }
 
-    ;
+
 AGG:
     MAX LBRACE ID DOT ID RBRACE{
 	RelAttr attr;
@@ -664,13 +700,13 @@ AGG:
     }
 select_attr:
 	AGG attr_list
-	|ATT attr_list
+	|E_ attr_list
 
     ;
 attr_list:
     /* empty */
     | COMMA AGG attr_list
-    | COMMA ATT attr_list
+    | COMMA E_ attr_list
 
 where:
     /* empty */ 
