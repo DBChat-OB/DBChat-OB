@@ -26,6 +26,7 @@ class ExecuteStage : public common::Stage {
 public:
   ~ExecuteStage();
   static Stage *make_stage(const std::string &tag);
+  static RC sub_select(Selects& selects,TupleSet& ret,Trx *trx);
 
 protected:
   // common function
@@ -39,7 +40,6 @@ protected:
                      common::CallbackContext *context) override;
 
   void handle_request(common::StageEvent *event);
-  RC sub_select(Selects& selects,TupleSet& ret,Trx *trx);
   RC do_select(const char *db, Query *sql, SessionEvent *session_event);
 protected:
 private:
