@@ -13,7 +13,6 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <stddef.h>
-#include "unevaluated.h"
 #include "condition_filter.h"
 #include "record_manager.h"
 #include "common/log/log.h"
@@ -109,19 +108,9 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition) {
         }
     } else {
         right.is_attr = false;
-        if (condition.right_value.type != UNEVALUATED) {
-            // 右值已经是实际值，不需要求值
-            right.value = condition.right_value.data;
-            right.is_null = condition.right_value.null_attr;
-            type_right = condition.right_value.type;
-        } else {
-            // 右值未被求出
-            // 未求值的抽象值需要先计算出实际值才能被filter使用
-            auto concrete_value = unevaluated::eval(condition.right_value, table);
-            right.value = concrete_value.data;
-            type_right = concrete_value.type;
-        }
-
+        right.value = condition.right_value.data;
+        type_right = condition.right_value.type;
+        right.is_null = condition.right_value.null_attr;
         right.attr_length = 0;
         right.attr_offset = 0;
         if (type_right == CHARS && left.is_attr && type_left == DATE) {
