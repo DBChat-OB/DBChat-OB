@@ -10,7 +10,7 @@
 #include "table.h"
 
 namespace unevaluated {
-    Value eval(const Value &val, const Table &table);
+    RC eval(const Value &val, const Table &table, Trx *trx, Value &value);
 }
 
 #endif //MINIDB_UNEVALUATED_H
