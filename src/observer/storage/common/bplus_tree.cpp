@@ -163,6 +163,17 @@ int CompareKey(const char *pdata, const char *pkey,AttrType attr_type,int attr_l
   float f1,f2;
   const char *s1,*s2;
   unsigned int u1,u2;
+  unsigned int is_null_1,is_null_2;
+  is_null_1 = *(unsigned int *)pdata;
+  is_null_2 = *(unsigned int *)pkey;
+  if(is_null_1==0&&is_null_2==0)
+      return 0;
+  else if(is_null_1==0&&is_null_2!=0)
+      return -1;
+  else if(is_null_1!=0&&is_null_2==0)
+      return 1;
+  else
+    {}
   switch(attr_type){
     case INTS: {
       i1 = *(int *) pdata;
@@ -807,6 +818,7 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
   char *pdata,*key;
   IndexNode *leaf;
   RID tempRID;
+  unsigned int null_key = 0;
   //BplusTreeHandler::print_tree();
   if(unique_attr&&(BplusTreeHandler::get_entry(pkey,&tempRID)==RC::SUCCESS))
       return RC::RECORD_DUPLICATE_KEY;
@@ -818,7 +830,12 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
     LOG_ERROR("Failed to alloc memory for key. size=%d", file_header_.key_length);
     return RC::NOMEM;
   }
-  memcpy(key,pkey,file_header_.attr_length);
+  if(((*(unsigned *) (pkey-4))&&0x00000001==0x00000001)){
+      memcpy(key, &null_key, 4);
+  }
+  else {
+      memcpy(key, pkey, file_header_.attr_length);
+  }
   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
   rc= find_leaf(key, &leaf_page);
   if(rc!=SUCCESS){
@@ -1460,7 +1477,13 @@ RC BplusTreeHandler::delete_entry(const char *data, const RID *rid) {
     LOG_ERROR("Failed to alloc memory for key. size=%d", file_header_.key_length);
     return RC::NOMEM;
   }
-  memcpy(pkey,data,file_header_.attr_length);
+  unsigned int null_key = 0;
+    if(((*(unsigned *) (data-4))&&0x00000001==0x00000001)){
+        memcpy(pkey, &null_key, 4);
+    }
+    else {
+        memcpy(pkey, data, file_header_.attr_length);
+    }
   memcpy(pkey + file_header_.attr_length, rid ,sizeof(*rid));
 
   rc=find_leaf(pkey,&leaf_page);
@@ -1547,7 +1570,7 @@ RC BplusTreeHandler::print_tree() {
   return SUCCESS;
 }
 
-RC BplusTreeHandler::find_first_index_satisfied(CompOp compop, const char *key, PageNum *page_num, int *rididx) {
+RC BplusTreeHandler::find_first_index_satisfied(CompOp compop, const char *key, PageNum *page_num, int *rididx, bool value_is_null) {
   BPPageHandle page_handle;
   IndexNode *node;
   PageNum leaf_page,next;
@@ -1555,7 +1578,7 @@ RC BplusTreeHandler::find_first_index_satisfied(CompOp compop, const char *key, 
   RC rc;
   int i,tmp;
   RID rid;
-  if(compop == LESS_THAN || compop == LESS_EQUAL || compop == NOT_EQUAL){
+  if(compop == LESS_THAN || compop == LESS_EQUAL || compop == NOT_EQUAL || compop==IS_CompOP || compop==IS_NOT_CompOP || value_is_null){
     rc = get_first_leaf_page(page_num);
     if(rc != SUCCESS){
       return rc;
@@ -1684,8 +1707,9 @@ RC BplusTreeHandler::get_first_leaf_page(PageNum *leaf_page) {
 BplusTreeScanner::BplusTreeScanner(BplusTreeHandler &index_handler) : index_handler_(index_handler){
 }
 
-RC BplusTreeScanner::open(CompOp comp_op,const char *value) {
+RC BplusTreeScanner::open(CompOp comp_op,const char *value, bool value_is_null) {
   RC rc;
+  unsigned int null_index = 0;
   if(opened_){
     return RC::RECORD_OPENNED;
   }
@@ -1697,9 +1721,12 @@ RC BplusTreeScanner::open(CompOp comp_op,const char *value) {
     LOG_ERROR("Failed to alloc memory for value. size=%d", index_handler_.file_header_.attr_length);
     return RC::NOMEM;
   }
-  memcpy(value_copy, value, index_handler_.file_header_.attr_length);
+  if(value_is_null)
+      memcpy(value_copy, &null_index, 4);
+  else
+      memcpy(value_copy, value, index_handler_.file_header_.attr_length);
   value_ = value_copy; // free value_
-  rc = index_handler_.find_first_index_satisfied(comp_op, value, &next_page_num_, &index_in_node_);
+  rc = index_handler_.find_first_index_satisfied(comp_op, value, &next_page_num_, &index_in_node_, value_is_null);
   if(rc != SUCCESS){
     if(rc == RC::RECORD_EOF){
       next_page_num_ = -1;
@@ -1822,7 +1849,7 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
   const char *s1=nullptr,*s2=nullptr;
   unsigned int u1=0,u2=0;
 
-  if(comp_op_ == NO_OP){
+  if(comp_op_ == NO_OP || comp_op_ == IS_NOT_CompOP || comp_op_==IS_CompOP){
     return true;
   }
 

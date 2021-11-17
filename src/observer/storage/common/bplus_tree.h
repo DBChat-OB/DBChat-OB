@@ -107,7 +107,7 @@ protected:
   RC coalesce_node(PageNum leaf_page, PageNum right_page);
   RC redistribute_nodes(PageNum left_page, PageNum right_page);
 
-  RC find_first_index_satisfied(CompOp comp_op, const char *pkey, PageNum *page_num, int *rididx);
+  RC find_first_index_satisfied(CompOp comp_op, const char *pkey, PageNum *page_num, int *rididx, bool value_is_null);
   RC get_first_leaf_page(PageNum *leaf_page);
 
 private:
@@ -132,7 +132,7 @@ public:
    * compOp和*value指定比较符和比较值，indexScan为初始化后的索引扫描结构指针
    * 没有带两个边界的范围扫描
    */
-  RC open(CompOp comp_op, const char *value);
+  RC open(CompOp comp_op, const char *value, bool value_is_null);
 
   /**
    * 用于继续索引扫描，获得下一个满足条件的索引项，

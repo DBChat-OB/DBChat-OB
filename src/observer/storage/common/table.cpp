@@ -839,7 +839,7 @@ IndexScanner *Table::find_index_for_scan(const DefaultConditionFilter &filter) {
     return nullptr;
   }
 
-  return index->create_scanner(filter.comp_op(), (const char *)value_cond_desc->value);
+  return index->create_scanner(filter.comp_op(), (const char *)value_cond_desc->value, value_cond_desc->is_null);
 }
 
 IndexScanner *Table::find_index_for_scan(const ConditionFilter *filter) {
