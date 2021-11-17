@@ -140,6 +140,7 @@ ParserContext *get_context(yyscan_t scanner)
         NOT
         IS
 
+	GROUP
 
 %union {
   struct _Attr *attr;
@@ -190,13 +191,14 @@ command:
 	| load_data
 	| help
 	| exit
-	| agg_attrs
 	| AGG
-	| AGG_list
 	| orders
 	| order_list
 	| relations
 	| join_list
+	| ATT
+	| groups
+	| group_list
     ;
 
 exit:			
@@ -420,7 +422,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM relations where orders SEMICOLON
+    SELECT select_attr FROM relations where orders groups SEMICOLON
 		{
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_conditions(&CONTEXT->ssql->sstr.selection, CONTEXT->conditions, CONTEXT->condition_length);
@@ -433,20 +435,6 @@ select:				/*  select 语句的语法解析树*/
 			CONTEXT->select_length=0;
 			CONTEXT->value_length = 0;
 	}
-	;
-	|
-	SELECT agg_attrs FROM relations where SEMICOLON{
-                selects_append_conditions(&CONTEXT->ssql->sstr.selection, CONTEXT->conditions, CONTEXT->condition_length);
-
-                			CONTEXT->ssql->flag=SCF_SELECT;//"select";
-                			// CONTEXT->ssql->sstr.selection.attr_num = CONTEXT->select_length;
-
-                			//临时变量清零
-                			CONTEXT->condition_length=0;
-                			CONTEXT->from_length=0;
-                			CONTEXT->select_length=0;
-                			CONTEXT->value_length = 0;
-	};
 relations:
 	ID join_list rel_list{
 		selects_append_relation(&CONTEXT->ssql->sstr.selection, $1);
@@ -462,15 +450,70 @@ rel_list:
 		selects_append_relation(&CONTEXT->ssql->sstr.selection, $2);
 	}
     ;
-agg_attrs:
-    AGG AGG_list{
-
-    }
-AGG_list:
-    /* empty */
-    | COMMA AGG AGG_list{
-
-    };
+groups:
+/* empty */
+| GROUP BY ID group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| GROUP BY ID DOT ID group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| GROUP BY ID ASC group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| GROUP BY ID DOT ID ASC group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+}
+| GROUP BY ID DESC group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, NULL, $3);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+}
+| GROUP BY ID DOT ID DESC group_list{
+	RelAttr attr;
+	relation_attr_init(&attr, $3, $5);
+        selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+};
+group_list:
+ /* empty */
+ | COMMA ID group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID DOT ID group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID ASC group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID DOT ID ASC group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,1);
+ }
+ | COMMA  ID DESC group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, NULL, $2);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+ }
+ | COMMA  ID DOT ID DESC group_list{
+ 	RelAttr attr;
+ 	relation_attr_init(&attr, $2, $4);
+         selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
+ };
 orders:
 /* empty */
 | ORDER BY ID order_list{
@@ -535,6 +578,29 @@ order_list:
  	relation_attr_init(&attr, $2, $4);
          selects_append_orders(&CONTEXT->ssql->sstr.selection, &attr,0);
  };
+ATT:
+	STAR{
+			RelAttr attr;
+			relation_attr_init(&attr, NULL, "*");
+			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+		}
+    	| ID {
+			RelAttr attr;
+			relation_attr_init(&attr, NULL, $1);
+			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+		}
+  	| ID DOT ID {
+			RelAttr attr;
+			relation_attr_init(&attr, $1, $3);
+			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+		}
+        | ID DOT STAR {
+			RelAttr attr;
+			relation_attr_init(&attr, $1, "*");
+			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            	}
+
+    ;
 AGG:
     MAX LBRACE ID DOT ID RBRACE{
 	RelAttr attr;
@@ -587,60 +653,14 @@ AGG:
         selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
 select_attr:
-    STAR attr_list{
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, "*");
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-    | ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, $1);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-  	| ID DOT ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, $1, $3);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-            | ID DOT STAR attr_list{
-			RelAttr attr;
-			relation_attr_init(&attr, $1, "*");
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-            	}
+	AGG attr_list
+	|ATT attr_list
 
     ;
 attr_list:
     /* empty */
-    | COMMA ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, $2);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-     	  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].relation_name = NULL;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].attribute_name=$2;
-      }
-    | COMMA ID DOT ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, $2, $4);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].attribute_name=$4;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].relation_name=$2;
-  	  }
-    | COMMA ID DOT STAR attr_list {
-          			RelAttr attr;
-          			relation_attr_init(&attr, $2, "*");
-          			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-                  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].attribute_name=$4;
-                  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].relation_name=$2;
-            }
-            | COMMA STAR attr_list {
-            			RelAttr attr;
-            			relation_attr_init(&attr, NULL, "*");
-            			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-                 	  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].relation_name = NULL;
-                    // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].attribute_name=$2;
-                  }
-  	;
-
+    | COMMA AGG attr_list
+    | COMMA ATT attr_list
 
 where:
     /* empty */ 

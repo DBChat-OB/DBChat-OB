@@ -145,17 +145,18 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
     for (int i = 0; i < field_num; i++) {
         const FieldMeta *field_meta = table_meta.field(i);
         if (field_meta->visible()) {
-            schema.add(field_meta->type(), table_name, field_meta->name(), field_meta->nullable());
+            schema.add(field_meta->type(), table_name, field_meta->name(),field_meta->nullable());
         }
     }
 }
 
-void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable) {
-    fields_.emplace_back(type, table_name, field_name, nullable);
+void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable,) {
+    AggType  aggType=Null;
+    fields_.emplace_back(type, table_name, field_name,nullable,aggType);
     field_num++;
 }
 
-void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable) {
+void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType) {
     for (const auto &field: fields_) {
         if (0 == strcmp(field.table_name(), table_name) &&
             0 == strcmp(field.field_name(), field_name)) {
@@ -189,7 +190,26 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name) 
     }
     return -1;
 }
-
+void print_agg(TupleField tupleField,std::ostream &os){
+    switch (tupleField.agg_type()) {
+        case Min:{
+            os<<"min(";
+        }
+            break;
+        case Max:{
+            os<<"max(";
+        }
+            break;
+        case Avg:{
+            os<<"avg(";
+        }
+            break;
+        case Count:{
+            os<<"count(";
+        }
+            break;
+    }
+}
 void TupleSchema::print_with_table(std::ostream &os) const {
     if (fields_.empty()) {
         os << "No schema";
@@ -197,16 +217,24 @@ void TupleSchema::print_with_table(std::ostream &os) const {
     }
     for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
          iter != end; ++iter) {
-
-        os << iter->table_name() << ".";
-
-        os << iter->field_name() << " | ";
+        if((*iter).agg_type()==Null){
+            os << iter->table_name() << ".";
+            os << iter->field_name() << " | ";
+        } else{
+            print_agg(*iter,os);
+            os << iter->table_name() << ".";
+            os << iter->field_name() <<")"<< " | ";
+        }
+    }
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() << std::endl;
+    } else{
+        print_agg(fields_.back(),os);
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() <<")"<< std::endl;
     }
 
-
-    os << fields_.back().table_name() << ".";
-
-    os << fields_.back().field_name() << std::endl;
 }
 
 void TupleSchema::print(std::ostream &os) const {
@@ -220,19 +248,21 @@ void TupleSchema::print(std::ostream &os) const {
     for (const auto &field: fields_) {
         table_names.insert(field.table_name());
     }
-
     for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
          iter != end; ++iter) {
-        if (table_names.size() > 1) {
-            os << iter->table_name() << ".";
+        if((*iter).agg_type()==Null){
+            os << iter->field_name() << " | ";
+        } else{
+            print_agg(*iter,os);
+            os << iter->field_name() <<")"<< " | ";
         }
-        os << iter->field_name() << " | ";
     }
-
-    if (table_names.size() > 1) {
-        os << fields_.back().table_name() << ".";
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().field_name() << std::endl;
+    } else{
+        print_agg(fields_.back(),os);
+        os << fields_.back().field_name()<<")" << std::endl;
     }
-    os << fields_.back().field_name() << std::endl;
 }
 
 

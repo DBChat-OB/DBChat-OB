@@ -15,6 +15,9 @@ See the Mulan PSL v2 for more details. */
 #ifndef __OBSERVER_SQL_EXECUTOR_VALUE_H_
 #define __OBSERVER_SQL_EXECUTOR_VALUE_H_
 #define EPSILON 1e-6
+
+#include <iostream>
+#include <iomanip>
 #include <string.h>
 
 #include <string>
@@ -33,11 +36,11 @@ public:
 
     virtual int compare(const TupleValue &other) const = 0;
 
-    virtual int getIValue()const = 0;
+    virtual int getIValue() const = 0;
 
-    virtual float getFValue()const = 0;
+    virtual float getFValue() const = 0;
 
-    virtual void  get_data(void * &ptr)const = 0;
+    virtual void get_data(void *&ptr) const = 0;
 
     void set_null(bool null_attr);
 
@@ -64,12 +67,14 @@ public:
         }
     }
 
-    int getIValue()  const override {
+    int getIValue() const override {
         return value_;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return float(value_);
     }
+
     int compare(const TupleValue &other) const override {
 
         const IntValue &int_other = (const IntValue &) other;
@@ -78,8 +83,8 @@ public:
 
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
     }
 
     void set_null(bool null_attr) {
@@ -101,12 +106,34 @@ public:
     }
 
     void to_string(std::ostream &os) const override {
-        if(null_attr_) {
-            os << "null";
+        if(null_attr_){
+            os << "null" ;
         }
-        else {
-            os << value_;
+        else{
+            float a = value_;
+            bool flag = true;
+            int z[3];
+            z[0] = int(a);
+            a = a - (int) a;
+            for (int i = 0; i < 2; i++) {
+                a *= 10;
+                z[i + 1] = int(a);
+                if (a - (int) a == 0) {
+                    flag = false;
+                }
+                a = a - (int) a;
+            }
+            if (flag) {//如何输出两位
+                if (a * 10 >= 5) {
+                    z[2] += 1;
+                }
+                float ret = z[0] * 1.0 + z[1] * 0.1 + z[2] * 0.01;
+                os << ret;
+            } else {
+                os << value_;
+            }
         }
+
     }
 
     int getIValue()  const override {
