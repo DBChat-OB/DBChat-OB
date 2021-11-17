@@ -13,7 +13,6 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <stddef.h>
-#include <assert.h>
 #include "unevaluated.h"
 #include "condition_filter.h"
 #include "record_manager.h"
@@ -37,11 +36,7 @@ DefaultConditionFilter::DefaultConditionFilter() {
     right_.value = nullptr;
 }
 
-DefaultConditionFilter::~DefaultConditionFilter() {
-    // unevaluated类型会计算出一个临时的实际值，在此需要销毁
-    if (left_.is_ue)  free(left_.value); // 参考value_destroy
-    if (right_.is_ue)  free(right_.value); // 参考value_destroy
-}
+DefaultConditionFilter::~DefaultConditionFilter() {}
 
 RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op) {
     if (attr_type < UNDEFINED || attr_type > DATE) {
@@ -61,7 +56,7 @@ RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrT
     return RC::SUCCESS;
 }
 
-RC DefaultConditionFilter::init(Table &table, const Condition &condition, Trx *trx) {
+RC DefaultConditionFilter::init(Table &table, const Condition &condition) {
     const TableMeta &table_meta = table.table_meta();
     ConDesc left;
     ConDesc right;
@@ -84,28 +79,11 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition, Trx *t
         type_left = field_left->type();
     } else {
         left.is_attr = false;
+        left.value = condition.left_value.data;  // 校验type 或者转换类型
+        type_left = condition.left_value.type;
+        left.is_null = condition.left_value.null_attr;
         left.attr_length = 0;
         left.attr_offset = 0;
-        if (condition.left_value.type != UNEVALUATED) {
-            // 左值已经是实际值，不需要求值
-            left.is_ue = false;
-            left.is_null = condition.left_value.null_attr;
-            left.value = condition.left_value.data;  // 校验type 或者转换类型
-            type_left = condition.left_value.type;
-        } else {
-            // 左值未被求出
-            // 未求值的抽象值需要先计算出实际值才能被filter使用
-            left.is_ue = true;
-            Value concrete_value;
-            RC err;
-            if ((err = unevaluated::eval(condition.left_value, table, trx, concrete_value)) != RC::SUCCESS) {
-                LOG_ERROR("Failed to evaluate value referenced in filter condition.");
-                return err;
-            }
-            assert(concrete_value.type != UNEVALUATED);
-            left.value = concrete_value.data;
-            type_left = concrete_value.type;
-        }
     }
 
     if (1 == condition.right_is_attr) {
@@ -131,29 +109,21 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition, Trx *t
         }
     } else {
         right.is_attr = false;
-        right.attr_length = 0;
-        right.attr_offset = 0;
         if (condition.right_value.type != UNEVALUATED) {
             // 右值已经是实际值，不需要求值
-            right.is_ue = false;
             right.value = condition.right_value.data;
             right.is_null = condition.right_value.null_attr;
             type_right = condition.right_value.type;
         } else {
             // 右值未被求出
             // 未求值的抽象值需要先计算出实际值才能被filter使用
-            right.is_ue = true;
-            Value concrete_value;
-            RC err;
-            if ((err = unevaluated::eval(condition.right_value, table, trx, concrete_value)) != RC::SUCCESS) {
-                LOG_ERROR("Failed to evaluate value referenced in filter condition.");
-                return err;
-            }
-            assert(concrete_value.type != UNEVALUATED);
+            auto concrete_value = unevaluated::eval(condition.right_value, table);
             right.value = concrete_value.data;
             type_right = concrete_value.type;
         }
 
+        right.attr_length = 0;
+        right.attr_offset = 0;
         if (type_right == CHARS && left.is_attr && type_left == DATE) {
             time_t time_value;
             if (mytime::chars_to_date((char *) right.value, time_value)) {
@@ -177,14 +147,7 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition, Trx *t
 //    return RC::SCHEMA_FIELD_TYPE_MISMATCH;
 //  }
 
-    // 比较时要转换成什么类型
-    // 设置为ATTR_TABLE来表示至少有一边是TABLE。
-    auto cast_type = type_left;
-    if (type_left == ATTR_TABLE || type_right == ATTR_TABLE) {
-        cast_type = ATTR_TABLE;
-    }
-
-    return init(left, right, cast_type, condition.comp);
+    return init(left, right, type_left, condition.comp);
 }
 
 bool DefaultConditionFilter::filter(const Record &rec) const {
@@ -268,22 +231,6 @@ bool DefaultConditionFilter::filter(const Record &rec) const {
             cmp_result = (unsigned int) (left - right);
         }
             break;
-        case UNEVALUATED: {
-            LOG_PANIC("Encountered unevaluated value in filter().");
-        }
-        break;
-        case ATTR_TABLE: {
-            switch (comp_op_) {
-                case CONTAINED_BY: {
-                    // WHERE xxx IN yyy
-                    // TODO
-                }
-                break;
-                // TODO 实现其他比较运算符
-            }
-        }
-        return cmp_result; // 涉及到表格的比较，需要把最终比较结果放到cmp_result里，并在此提前返回
-        break;
         default: {
         }
     }
@@ -301,6 +248,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const {
             return cmp_result >= 0;
         case GREAT_THAN:
             return cmp_result > 0;
+
         default:
             break;
     }
@@ -327,7 +275,7 @@ RC CompositeConditionFilter::init(const ConditionFilter *filters[], int filter_n
     return init(filters, filter_num, false);
 }
 
-RC CompositeConditionFilter::init(Table &table, const Condition *conditions, int condition_num, Trx *trx) {
+RC CompositeConditionFilter::init(Table &table, const Condition *conditions, int condition_num) {
     if (condition_num == 0) {
         return RC::SUCCESS;
     }
@@ -339,7 +287,7 @@ RC CompositeConditionFilter::init(Table &table, const Condition *conditions, int
     ConditionFilter **condition_filters = new ConditionFilter *[condition_num];
     for (int i = 0; i < condition_num; i++) {
         DefaultConditionFilter *default_condition_filter = new DefaultConditionFilter();
-        rc = default_condition_filter->init(table, conditions[i], trx);
+        rc = default_condition_filter->init(table, conditions[i]);
         if (rc != RC::SUCCESS) {
             delete default_condition_filter;
             for (int j = i - 1; j >= 0; j--) {
