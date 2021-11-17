@@ -125,7 +125,6 @@ ParserContext *get_context(yyscan_t scanner)
         LE
         GE
         NE
-		IN
         MAX
         MIN
         COUNT
@@ -717,7 +716,7 @@ condition:
 			// $$->right_value = *$3;
 
 		}
-	|ID comOp ID 
+		|ID comOp ID 
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
@@ -820,14 +819,7 @@ condition:
 			// $$->right_attr.relation_name=$5;
 			// $$->right_attr.attribute_name=$7;
     }
-	| ID IN LBRACE subQuery RBRACE // x IN (SELECT y FROM b)
-		{
-
-		}
     ;
-
-subQuery:
-		  select 
 
 comOp:
   	  EQ { CONTEXT->comp = EQUAL_TO; }
