@@ -40,7 +40,6 @@ protected:
                      common::CallbackContext *context) override;
 
   void handle_request(common::StageEvent *event);
-  RC sub_select(Selects& selects,TupleSet& ret,Trx *trx);
   RC do_select(const char *db, Query *sql, SessionEvent *session_event);
 protected:
 private:
