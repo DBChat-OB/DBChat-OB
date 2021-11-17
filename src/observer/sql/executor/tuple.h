@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <cstring>
 
 #include "sql/parser/parse.h"
 #include "sql/executor/value.h"
@@ -53,6 +54,8 @@ public:
 
     Tuple &operator=(Tuple &&other) noexcept;
 
+    Tuple(AttrType type_, void *data);
+
     void add(TupleValue *value);
 
     void add(Tuple *tuple);
@@ -69,15 +72,15 @@ public:
 
     void add(time_t value);
 
-    bool operator==(Tuple &other) {
-        for(int i=0;i<orders.size();i++){
-            int order=orders[i];
-            if (values_.at(order)->compare(other.get(order))!=0) {
+    bool operator==(const Tuple &other) const {
+        for (int order : orders) {
+            if (values_.at(order)->compare(other.get(order)) != 0) {
                 return false;
             }
         }
         return true;
     }
+
     bool operator<(Tuple &other) {
         for (int order : orders) {
             int ret = values_.at(order)->compare(other.get(order));
@@ -264,6 +267,10 @@ public:
     void swap(int i,int j){
         std::swap(tuples_[i],tuples_[j]);
     }
+
+    // 将1x1表格展平为一个标量值。如果表格不是1x1的，返回false，否则将成功展平并返回true。对得到的值调用value_destroy是未定义行为。
+    bool flatten(Value &ret) const;
+
     void sort() {//重写排序
 //        for(int i=0;i<tuples_.size();i++){
 //            int min=i;

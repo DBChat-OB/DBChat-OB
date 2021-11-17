@@ -131,6 +131,30 @@ void Tuple::add(time_t value) {
     add(new DateValue(value));
 }
 
+// Create a Tuple with only one element of given type of data.
+Tuple::Tuple(AttrType type_, void *data) {
+    switch (type_) {
+            case CHARS:
+                add((char*)data, (int)strlen((char*)data));
+                break;
+            case INTS:
+                add(*(int*)data);
+                break;
+            case FLOATS:
+                add(*(float*)data);
+                break;
+            case DATE:
+                add(*(time_t*)data);
+                break;
+            case UNDEFINED:
+            case UNEVALUATED:
+            case ATTR_TABLE:
+                LOG_ERROR("Programming error: Trying to add value of unsupported type into Tuple.");
+                assert(0);
+                break;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string TupleField::to_string() const {
@@ -413,6 +437,16 @@ Tuple *TupleSet::get(int index) {
 
 const std::vector<Tuple> &TupleSet::tuples() const {
     return tuples_;
+}
+
+bool TupleSet::flatten(Value &ret) const {
+    if (this->size() != 1)  return false;
+    auto &t = this->get(0);
+    if (t.size() != 1)  return false;
+    auto &v = t.get(0);
+    ret.type = v.get_type();
+    v.get_data(ret.data);
+    return true;
 }
 
 

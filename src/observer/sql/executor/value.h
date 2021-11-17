@@ -41,6 +41,8 @@ public:
 
     virtual void get_data(void *&ptr) const = 0;
 
+    virtual AttrType get_type() const = 0;
+
 private:
 };
 
@@ -71,6 +73,10 @@ public:
 
     void get_data(void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::INTS;
     }
 
 
@@ -134,6 +140,10 @@ public:
         ptr = (void *) &value_;
     }
 
+    AttrType get_type() const override {
+        return AttrType::FLOATS;
+    }
+
 public:
     float value_;
 };
@@ -167,6 +177,10 @@ public:
 
     void get_data(void *&ptr) const override {
         ptr = (void *) &value_c_str;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::CHARS;
     }
 
 private:
@@ -207,6 +221,10 @@ public:
 
     void get_data(void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::DATE;
     }
 
 private:
