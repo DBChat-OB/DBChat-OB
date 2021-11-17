@@ -41,7 +41,7 @@ DefaultConditionFilter::~DefaultConditionFilter()
 
 RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op)
 {
-  if (attr_type < CHARS || attr_type > DATE) {
+  if (attr_type < UNDEFINED || attr_type > DATE) {
     LOG_ERROR("Invalid condition with unsupported attribute type: %d", attr_type);
     return RC::INVALID_ARGUMENT;
   }
@@ -84,7 +84,7 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition)
     left.is_attr = false;
     left.value = condition.left_value.data;  // 校验type 或者转换类型
     type_left = condition.left_value.type;
-
+    left.is_null = condition.left_value.null_attr;
     left.attr_length = 0;
     left.attr_offset = 0;
   }
@@ -115,7 +115,7 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition)
     right.is_attr = false;
     right.value = condition.right_value.data;
     type_right = condition.right_value.type;
-
+    right.is_null = condition.right_value.null_attr;
     right.attr_length = 0;
     right.attr_offset = 0;
     if(type_right==CHARS&&left.is_attr&&type_left==DATE) {
@@ -149,19 +149,53 @@ bool DefaultConditionFilter::filter(const Record &rec) const
 {
   char *left_value = nullptr;
   char *right_value = nullptr;
-
+  bool left_is_null = false;
+  bool right_is_null = false;
   if (left_.is_attr) {  // value
+      left_is_null = ((*(unsigned *) (rec.data + left_.attr_offset-4))&&0x00000001==0x00000001);
     left_value = (char *)(rec.data + left_.attr_offset);
   } else {
+      left_is_null = left_.is_null;
     left_value = (char *)left_.value;
   }
 
   if (right_.is_attr) {
+      right_is_null = ((*(unsigned *) (rec.data + right_.attr_offset-4))&&0x00000001==0x00000001);
     right_value = (char *)(rec.data + right_.attr_offset);
   } else {
+      right_is_null = right_.is_null;
     right_value = (char *)right_.value;
   }
-
+  //null的比较逻辑
+    if (left_is_null||right_is_null) {
+        if (comp_op_==IS_CompOP||comp_op_==IS_NOT_CompOP) {
+            switch (comp_op_) {
+                case IS_CompOP:
+                    if (left_is_null&&right_is_null)
+                        return true;
+                    else
+                        return false;
+                    break;
+                case IS_NOT_CompOP:
+                    if(left_is_null&&right_is_null)
+                        return false;
+                    else if(left_is_null&&!right_is_null)
+                        return false;
+                    else if(!left_is_null&&right_is_null)
+                        return true;
+                    else
+                        return false;
+                    break;
+                default:
+                    return false;
+                    break;
+            }
+        }
+        else {
+            //用其他符号对null进行比较一律返回false
+            return false;
+        }
+    }
   int cmp_result = 0;
   switch (attr_type_) {
     case CHARS: {  // 字符串都是定长的，直接比较
