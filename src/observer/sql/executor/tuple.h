@@ -190,12 +190,12 @@ public:
     ~TupleSchema() = default;
 
     void add(AttrType type, const char *table_name, const char *field_name, bool nullable);
-
+    void add_agg(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType);
     int get_field_size() {
         return field_num;
     }
 
-    void add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType);
+    void add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable);
 
     // void merge(const TupleSchema &other);
     void append(const TupleSchema &other);

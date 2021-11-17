@@ -150,13 +150,16 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
     }
 }
 
-void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable,) {
+void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable) {
     AggType  aggType=Null;
     fields_.emplace_back(type, table_name, field_name,nullable,aggType);
     field_num++;
 }
-
-void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType) {
+void TupleSchema::add_agg(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType){
+    fields_.emplace_back(type, table_name, field_name,nullable,aggType);
+    field_num++;
+}
+void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable) {
     for (const auto &field: fields_) {
         if (0 == strcmp(field.table_name(), table_name) &&
             0 == strcmp(field.field_name(), field_name)) {

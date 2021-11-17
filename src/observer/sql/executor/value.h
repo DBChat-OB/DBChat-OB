@@ -76,11 +76,8 @@ public:
     }
 
     int compare(const TupleValue &other) const override {
-
         const IntValue &int_other = (const IntValue &) other;
         return value_ - int_other.value_;
-
-
     }
 
     void get_data(void *&ptr) const override {

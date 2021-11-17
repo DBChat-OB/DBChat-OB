@@ -585,7 +585,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
         addtuple.add(values);
         tupleSet.add(std::move(addtuple));
     }
-    if(selects.order_num!=0){
+    if (selects.order_num != 0) {
         Tuple::clear();
         for (int i = selects.order_num - 1; i >= 0; i--) {
             RelAttr attr = selects.orders[i];
@@ -602,14 +602,14 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
                 return RC::SCHEMA_FIELD_MISSING;//虽然错误并不是如此
             }
         }
-        for(int i=0;i<tupleSet.size();i++){
-            int min=i;
-            for(int j=i+1;j<tupleSet.size();j++){
-                if(!comp(tupleSet.get(min),tupleSet.get(j))){
-                    min=j;
+        for (int i = 0; i < tupleSet.size(); i++) {
+            int min = i;
+            for (int j = i + 1; j < tupleSet.size(); j++) {
+                if (!comp(tupleSet.get(min), tupleSet.get(j))) {
+                    min = j;
                 }
             }
-            tupleSet.swap(i,min);
+            tupleSet.swap(i, min);
         }
     }
     //处理聚合查询的输出
@@ -641,10 +641,10 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
             }
             if (selects.attributes[i].relation_name == nullptr) {
                 agg_schema.add_agg(attrType, selects.relations[0], selects.attributes[i].attribute_name,
-                                   selects.attributes[i].aggType);
+                                   false, selects.attributes[i].aggType);
             } else {
                 agg_schema.add_agg(attrType, selects.attributes[i].relation_name, selects.attributes[i].attribute_name,
-                                   selects.attributes[i].aggType);
+                                   false, selects.attributes[i].aggType);
             }
         }
         ret.set_schema(agg_schema);
@@ -738,7 +738,6 @@ static RC schema_add_field(Table *table, const char *field_name, TupleSchema &sc
         LOG_WARN("No such field. %s.%s", table->name(), field_name);
         return RC::SCHEMA_FIELD_MISSING;
     }
-
     schema.add_if_not_exists(field_meta->type(), table->name(), field_meta->name(), field_meta->nullable());
     return RC::SUCCESS;
 }
@@ -750,7 +749,7 @@ static RC schema_add_field_except_exist(Table *table, const char *field_name, Tu
         return RC::SCHEMA_FIELD_MISSING;
     }
 
-    schema.add(field_meta->type(), table->name(), field_meta->name(),field_meta->nullable());
+    schema.add(field_meta->type(), table->name(), field_meta->name(), field_meta->nullable());
     return RC::SUCCESS;
 }
 
@@ -865,9 +864,21 @@ void cal_agg(TupleSet &tupleSet, TupleSet &ret, int begin, int end) {
             case Max: {
                 int max = begin;
                 for (int i = begin; i <= end; i++) {
-                    if (tupleSet.get(i)->get(id).compare(tupleSet.get(max)->get(id)) > 0) {
-                        max = i;
+                    if (tupleSet.get(i)->get(id).is_null()) {
+                    } else {
+                        begin = i;
+                        break;
                     }
+                }
+                for (int i = begin; i <= end; i++) {
+                    if (tupleSet.get(i)->get(id).is_null()) {
+
+                    } else {
+                        if (tupleSet.get(i)->get(id).compare(tupleSet.get(max)->get(id)) > 0) {
+                            max = i;
+                        }
+                    }
+
                 }
                 std::vector<std::shared_ptr<TupleValue>> other;
                 other.emplace_back(tupleSet.get(max)->values().at(id));
@@ -877,9 +888,22 @@ void cal_agg(TupleSet &tupleSet, TupleSet &ret, int begin, int end) {
             case Min: {
                 int min = begin;
                 for (int i = begin; i <= end; i++) {
-                    if (tupleSet.get(i)->get(id).compare(tupleSet.get(min)->get(id)) < 0) {
-                        min = i;
+                    if (tupleSet.get(i)->get(id).is_null()) {
+                    } else {
+                        begin = i;
+                        break;
                     }
+                }
+
+                for (int i = begin; i <= end; i++) {
+                    if (tupleSet.get(i)->get(id).is_null()) {
+
+                    } else {
+                        if (tupleSet.get(i)->get(id).compare(tupleSet.get(min)->get(id)) < 0) {
+                            min = i;
+                        }
+                    }
+
                 }
                 std::vector<std::shared_ptr<TupleValue>> other;
                 other.emplace_back(tupleSet.get(min)->values().at(id));
@@ -888,27 +912,47 @@ void cal_agg(TupleSet &tupleSet, TupleSet &ret, int begin, int end) {
                 break;
             case Count: {
                 if (strcmp(tupleField.field_name(), "*") == 0) {
-                    tuple.add(end - begin + 1);
+                    tuple.add(end - begin + 1, false);
                 } else {
                     //这里处理Null
-                    tuple.add(end - begin + 1);
+                    int count=0;
+                    for (int i = begin; i <= end; i++) {
+                        if (tupleSet.get(i)->get(id).is_null()) {
+
+                        } else{
+                            count++;
+                        }
+
+                    }
+                    tuple.add(count, false);
                 }
             }
                 break;
             case Avg: {//这个只在int float中出现 TODO 如何处理null
-
                 float avg = 0;
-                int size = end - begin + 1;
+                int size = 0;
                 if (tupleSet.get_schema().field(id).type() == FLOATS) {
                     for (int i = begin; i <= end; i++) {
-                        avg += ((const FloatValue &) tupleSet.get(i)->get(id)).getFValue() / size;
+                        if (tupleSet.get(i)->get(id).is_null()) {
+
+                        } else{
+                            avg += ((const FloatValue &) tupleSet.get(i)->get(id)).getFValue();
+                            size++;
+                        }
+
                     }
                 } else if (tupleSet.get_schema().field(id).type() == INTS) {
                     for (int i = begin; i <= end; i++) {
-                        avg += ((const IntValue &) tupleSet.get(i)->get(id)).getIValue() * 1.0 / size;
+                        if (tupleSet.get(i)->get(id).is_null()) {
+
+                        } else {
+                            avg += ((const IntValue &) tupleSet.get(i)->get(id)).getIValue();
+                            size++;
+                        }
                     }
                 }
-                tuple.add(avg);
+                float ret=avg*1.0/size;
+                tuple.add(ret, false);
                 break;
             }
             case Null: {
