@@ -171,10 +171,9 @@ public:
 
 class StringValue : public TupleValue {
 public:
-    StringValue(const char *value, int len, bool null_attr) : value_(value, len) {
+    StringValue(const char *value, int len) : value_(value, len) {
         memset(value_c_str, 0, 20);
         strcpy(value_c_str, value);
-        null_attr_ = null_attr;
     }
 
     explicit StringValue(const char *value) : value_(value) {

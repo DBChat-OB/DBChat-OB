@@ -135,16 +135,16 @@ void Tuple::add(time_t value, bool null_attr) {
 Tuple::Tuple(AttrType type_, void *data) {
     switch (type_) {
             case CHARS:
-                add((char*)data, (int)strlen((char*)data), false);
+                add((char*)data, (int)strlen((char*)data));
                 break;
             case INTS:
-                add(*(int*)data, false);
+                add(*(int*)data);
                 break;
             case FLOATS:
-                add(*(float*)data, false);
+                add(*(float*)data);
                 break;
             case DATE:
-                add(*(time_t*)data, false);
+                add(*(time_t*)data);
                 break;
             case UNDEFINED:
             case UNEVALUATED:
