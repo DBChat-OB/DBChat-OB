@@ -17,7 +17,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "rc.h"
 #include "sql/parser/parse.h"
-#include "storage/trx/trx.h"
 
 struct Record;
 class Table;
@@ -70,8 +69,6 @@ private:
   ConDesc  left_;
   ConDesc  right_;
   AttrType attr_type_ = UNDEFINED;
-  AttrType type_left;
-  AttrType type_right;
   CompOp   comp_op_ = NO_OP;
   bool     field_type_compare_compatible_table[7][7] = {
           true, true, true, true, true, false, true,

@@ -126,7 +126,6 @@ StageEvent *ParseStage::handle_request(StageEvent *event) {
     char response[256];
     //snprintf(response, sizeof(response), "Failed to parse sql: %s, error msg: %s\n", sql.c_str(), error);
     //sql_event->session_event()->set_response(response);
-    LOG_ERROR("SQL syntax error: %s", error);
     sql_event->session_event()->set_response("FAILURE\n");
     query_destroy(result);
     return nullptr;

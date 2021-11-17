@@ -14,14 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #include <stddef.h>
 #include <assert.h>
-#include <cmath>
 #include "unevaluated.h"
 #include "condition_filter.h"
 #include "record_manager.h"
 #include "common/log/log.h"
 #include "storage/common/table.h"
 #include "storage/common/mytime.cpp"
-#include "sql/executor/tuple.h"
 
 using namespace common;
 
@@ -46,7 +44,7 @@ DefaultConditionFilter::~DefaultConditionFilter() {
 }
 
 RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op) {
-    if (attr_type < UNDEFINED || attr_type > ATTR_TABLE) {
+    if (attr_type < UNDEFINED || attr_type > DATE) {
         LOG_ERROR("Invalid condition with unsupported attribute type: %d", attr_type);
         return RC::INVALID_ARGUMENT;
     }
@@ -186,137 +184,7 @@ RC DefaultConditionFilter::init(Table &table, const Condition &condition, Trx *t
         cast_type = ATTR_TABLE;
     }
 
-    this->type_left = type_left;
-    this->type_right = type_right;
-
     return init(left, right, cast_type, condition.comp);
-}
-
-static double scalar_to_double(const Value v) {
-    switch (v.type) {
-        case CHARS: {
-            char *end;
-            double d = strtod((char*)v.data, &end);
-            if (end > v.data && *(end - 1) == '\0') {
-                // conversion is success
-                return d;
-            } else {
-                // conversion failed
-                return NAN;
-            }
-        }
-        case INTS:
-            return *(int*)(v.data);
-        case FLOATS:
-            return *(float*)(v.data);
-        case DATE: {
-            time_t t;
-            mytime::chars_to_date((char*)v.data, t);
-            return (unsigned int)t;
-        }
-        case UNEVALUATED:
-        case UNDEFINED:
-        case ATTR_TABLE:
-            return NAN;
-    }
-    assert(0);
-}
-
-// 比较两个SQL标量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
-static int scalar_compare(const Value &v1, const Value &v2) {
-    // 两个字符串相比时，按照字符串比较处理
-    if (v1.type == CHARS && v2.type == CHARS)  return strcmp((char*)v1.data, (char*)v2.data);
-
-    // 否则，将按照C类型提升规则进行比较
-    // 在当前情况里，所有值均可被float64表示，因此全部转换为double再比较即可
-    double d1, d2;
-    d1 = scalar_to_double(v1);
-    d2 = scalar_to_double(v2);
-    if (std::isnan(d1) || std::isnan(d2)) return 0xFF;
-    if (d1 - d2 > -1e-20 && d1 - d2 < 1e-20) {
-        return 0;
-    } else if (d1 > d2) {
-        return 1;
-    } else if (d1 < d2) {
-        return -1;
-    }
-    return 0xFE;
-}
-
-// 比较两个SQL矢量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
-
-static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
-    // 有一个矢量是空的，按null处理
-    if (op == CompOp::NO_OP)  return 0;
-    if (v1.size() == 0 || v2.size() == 0) {
-        // 无法比较，直接返回比较失败
-        return 0xFC;
-    }
-
-    // 两边都是平凡矢量，即都是标量，按照标量比较规则进行比较
-    if (v1.size() == 1 && v2.size() == 1) {
-        auto &t1 = v1.get(0), &t2 = v2.get(0);
-        if (t1.size() != 1 || t2.size() != 1) {
-            // 列数超过1的矢量无法参与比较
-            return 0xFD;
-        }
-        // 两边都是1x1的二维矢量
-        // 退化为标量比较
-        // 除了IN之外的任意运算符作用到两个平凡矢量上，等价于作用到他们对应的标量上
-        // 如果是IN，那么此时标量相等<=>矢量包含
-        Value flatten_v1, flatten_v2;
-        if (v1.flatten(flatten_v1) && v2.flatten(flatten_v2)) {
-            int compare_result = scalar_compare(flatten_v1, flatten_v2);
-            if (op == CONTAINED_BY) {
-                if (compare_result == 0) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-            }
-            return compare_result;
-        }
-    }
-
-    // 两边都不是平凡矢量，按照SQL规则，无法比较
-    if (v1.size() > 1 && v2.size() > 1) {
-        return 0xFB;
-    }
-
-    // 一个是平凡矢量，一个不是平凡矢量，部分情况下可以比较
-    // 由于CONTAINED_BY运算符的特殊性，需要与其他运算符区分开，因此这里需要知道具体的运算符
-    int result = 0;
-    switch (op) {
-        case CONTAINED_BY: {
-            // WHERE x IN y, y must be a table, x must be a scalar or an ordinary 1-dim vector
-            result = 1; // initially as true (right contains left)
-            if (v1.size() > 1) {
-                // illegal according to SQL specification
-                result = 0xFB;
-                break;
-            }
-            for (auto &ele : v1.tuples()) {
-                const auto &vec = v2.tuples();
-                if (std::find(std::begin(vec), std::end(vec), ele) == std::end(vec)) {
-                    // right does not contain this value
-                    // set to false
-                    result = 0;
-                    break;
-                }
-            }
-        }
-        break;
-        case EQUAL_TO:
-        case LESS_EQUAL:
-        case NOT_EQUAL:
-        case LESS_THAN:
-        case GREAT_EQUAL:
-        case GREAT_THAN:
-        case NO_OP:
-            // 非平凡矢量无法被这些运算符作用，违反比较规则
-            result = 0xFC;
-    }
-    return result;
 }
 
 bool DefaultConditionFilter::filter(const Record &rec) const {
@@ -373,60 +241,72 @@ bool DefaultConditionFilter::filter(const Record &rec) const {
         }
     }
 
-    // 不涉及null，采用普通比较逻辑
-    // 直接把两边的数据都转成矢量，按照矢量比较规则进行比较
-    TupleSet *tuples_left = nullptr, *tuples_right = nullptr;
-    bool free_left = false, free_right = false; // 是否需要free
-
-    if (type_left == ATTR_TABLE) {
-        tuples_left = (TupleSet*)left_value;
-    } else {
-        // left is a scalar value
-        free_left = true;
-        tuples_left = new TupleSet();
-        tuples_left->add(Tuple(type_left, left_value));
+    int cmp_result = 0;
+    switch (attr_type_) {
+        case CHARS: {  // 字符串都是定长的，直接比较
+            // 按照C字符串风格来定
+            cmp_result = strcmp(left_value, right_value);
+        }
+            break;
+        case INTS: {
+            // 没有考虑大小端问题
+            // 对int和float，要考虑字节对齐问题,有些平台下直接转换可能会跪
+            int left = *(int *) left_value;
+            int right = *(int *) right_value;
+            cmp_result = left - right;
+        }
+            break;
+        case FLOATS: {
+            float left = *(float *) left_value;
+            float right = *(float *) right_value;
+            cmp_result = (int) (left - right);
+        }
+            break;
+        case DATE: {
+            unsigned int left = *(unsigned int *) left_value;
+            unsigned int right = *(unsigned int *) right_value;
+            cmp_result = (unsigned int) (left - right);
+        }
+            break;
+        case UNEVALUATED: {
+            LOG_PANIC("Encountered unevaluated value in filter().");
+        }
+        break;
+        case ATTR_TABLE: {
+            switch (comp_op_) {
+                case CONTAINED_BY: {
+                    // WHERE xxx IN yyy
+                    // TODO
+                }
+                break;
+                // TODO 实现其他比较运算符
+            }
+        }
+        return cmp_result; // 涉及到表格的比较，需要把最终比较结果放到cmp_result里，并在此提前返回
+        break;
+        default: {
+        }
     }
 
-    if (type_right == ATTR_TABLE) {
-        tuples_right = (TupleSet*)right_value;
-    } else {
-        // right is a scalar value
-        free_right = true;
-        tuples_right = new TupleSet();
-        tuples_right->add(Tuple(type_right, right_value));
-    }
-
-    int compare_result = vector_compare(*tuples_left, *tuples_right, comp_op_);
-
-    if (free_left) {
-        delete tuples_left;
-        tuples_left = nullptr;
-    }
-    if (free_right) {
-        delete tuples_right;
-        tuples_right = nullptr;
-    }
-
-    if (compare_result < -1 || compare_result > 1)  return false; // 比较时出现错误，直接跳过
     switch (comp_op_) {
         case EQUAL_TO:
-            return compare_result == 0;
+            return 0 == cmp_result;
         case LESS_EQUAL:
-            return compare_result <= 0;
+            return cmp_result <= 0;
         case NOT_EQUAL:
-            return compare_result != 0;
+            return cmp_result != 0;
         case LESS_THAN:
-            return compare_result < 0;
+            return cmp_result < 0;
         case GREAT_EQUAL:
-            return compare_result >= 0;
+            return cmp_result >= 0;
         case GREAT_THAN:
-            return compare_result > 0;
-        case CONTAINED_BY:
-            return compare_result != 0;
-        case NO_OP:
-            return false;
+            return cmp_result > 0;
+        default:
+            break;
     }
-    return false;
+
+    LOG_PANIC("Never should print this.");
+    return cmp_result;  // should not go here
 }
 
 CompositeConditionFilter::~CompositeConditionFilter() {
