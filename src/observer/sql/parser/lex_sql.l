@@ -35,8 +35,8 @@ QUOTE            [\'\"]
 
 %%
 
-{WHITE_SAPCE}                               // ignore whitespace
-\n																						 ;
+{WHITE_SAPCE}  // ignore whitespace
+\n                                                                                         ;
 
 [\-]?{DIGIT}+                               yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
 [\-]?{DIGIT}+{DOT}{DIGIT}+                  yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
@@ -103,9 +103,9 @@ QUOTE            [\'\"]
 ">"                                         RETURN_TOKEN(GT);
 {QUOTE}[\40\42\47A-Za-z0-9_/\.\-]*{QUOTE}   yylval->string=strdup(yytext); RETURN_TOKEN(SSS);
 
-.						                    printf("Unknown character [%c]\n",yytext[0]); return yytext[0];
+.                                           printf("Unknown character [%c]\n",yytext[0]); return yytext[0];
 %%
 
 void scan_string(const char *str, yyscan_t scanner) {
-	yy_switch_to_buffer(yy_scan_string(str, scanner), scanner);
+    yy_switch_to_buffer(yy_scan_string(str, scanner), scanner);
 }

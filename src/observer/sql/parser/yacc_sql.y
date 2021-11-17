@@ -201,9 +201,7 @@ command:
 	| load_data
 	| help
 	| exit
-	| agg_attrs
 	| AGG
-	| AGG_list
 	| orders
 	| order_list
 	| relations
@@ -447,20 +445,6 @@ select:				/*  select 语句的语法解析树*/
 			CONTEXT->select_length=0;
 			CONTEXT->value_length = 0;
 	}
-	;
-	|
-	SELECT agg_attrs FROM relations where{
-                selects_append_conditions(&CONTEXT->ssql->sstr.selection, CONTEXT->conditions, CONTEXT->condition_length);
-
-                			CONTEXT->ssql->flag=SCF_SELECT;//"select";
-                			// CONTEXT->ssql->sstr.selection.attr_num = CONTEXT->select_length;
-
-                			//临时变量清零
-                			CONTEXT->condition_length=0;
-                			CONTEXT->from_length=0;
-                			CONTEXT->select_length=0;
-                			CONTEXT->value_length = 0;
-	};
 relations:
 	ID join_list rel_list{
 		selects_append_relation(&CONTEXT->ssql->sstr.selection, $1);
