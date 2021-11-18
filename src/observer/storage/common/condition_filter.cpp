@@ -302,7 +302,9 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
             }
             for (auto &ele : v1.tuples()) {
                 const auto &vec = v2.tuples();
-                if (std::find(std::begin(vec), std::end(vec), ele) == std::end(vec)) {
+                Tuple::clear();
+                Tuple::append_order_attr(0,0);
+                if (std::find(vec.begin(), vec.end(), ele) == vec.end()) {
                     // right does not contain this value
                     // set to false
                     result = 0;
