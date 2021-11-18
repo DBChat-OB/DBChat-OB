@@ -60,9 +60,11 @@ class TestRunner:
 
     def __init__(self, client: Client, testcases: Iterator[str]):
         self._client, self._cases = client, testcases
+        self._logger = logging.getLogger('test-runner')
 
     def run_test(self, callback: Callable[[str, str], Optional[bool]]):
-        for testcase in self._cases:
+        for i, testcase in enumerate(self._cases):
+            self._logger.info(f'Run test {i + 1}.')
             response = self._client.execute(testcase)
             if callback(testcase, response) is False:
                 break
@@ -121,7 +123,7 @@ if __name__ == '__main__':
             print('Cannot connect to observer.', file=stderr)
             exit()
         tester = ReportingTester()
-        test_report = tester.run_test(TestRunner(client, f))
+        test_report = tester.run_test(TestRunner(client, filter(lambda x: x.strip(), f)))
         if report_file:
             with open(report_file, 'w', encoding=REPORT_FILE_ENCODING) as of:
                 of.write(test_report)
