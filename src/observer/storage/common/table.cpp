@@ -440,14 +440,21 @@ RC Table::scan_record_by_index(Trx *trx, IndexScanner *scanner, ConditionFilter 
       break;
     }
 
-    if ((trx == nullptr || trx->is_visible(this, &record)) && (filter == nullptr || filter->filter(record))) {
+    if ((trx == nullptr || trx->is_visible(this, &record)) && (filter == nullptr || filter->filter(record, rc))) {
+      if (rc != RC::SUCCESS) {
+        LOG_ERROR("filter comparison failed.");
+        break;
+      }
       rc = record_reader(&record, context);
       if (rc != RC::SUCCESS) {
         LOG_TRACE("Record reader break the table scanning. rc=%d:%s", rc, strrc(rc));
         break;
       }
     }
-
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("filter comparison failed.");
+      break;
+    }
     record_count++;
   }
 

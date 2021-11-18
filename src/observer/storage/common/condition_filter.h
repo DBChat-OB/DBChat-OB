@@ -38,9 +38,10 @@ public:
   /**
    * Filter one record
    * @param rec
+   * @param err 过滤操作中是否出现错误，如SQL规范规定的错误
    * @return true means match condition, false means failed to match.
    */
-  virtual bool filter(const Record &rec) const = 0;
+  virtual bool filter(const Record &rec, RC &err) const = 0;
 };
 
 class DefaultConditionFilter : public ConditionFilter {
@@ -51,7 +52,7 @@ public:
   RC init(const ConDesc &left, const ConDesc &right, AttrType attr_type, CompOp comp_op);
   RC init(Table &table, const Condition &condition, Trx *trx);
 
-  virtual bool filter(const Record &rec) const;
+  virtual bool filter(const Record &rec, RC &err) const;
 
 public:
   const ConDesc &left() const {
@@ -91,7 +92,7 @@ public:
 
   RC init(const ConditionFilter *filters[], int filter_num);
   RC init(Table &table, const Condition *conditions, int condition_num, Trx *trx);
-  virtual bool filter(const Record &rec) const;
+  virtual bool filter(const Record &rec, RC &err) const;
 
 public:
   int filter_num() const {

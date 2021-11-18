@@ -534,14 +534,15 @@ RC RecordFileScanner::get_next_record(Record *rec) {
     }
     
     ret = record_page_handler_.get_next_record(&current_record);
-    if (RC::SUCCESS == ret) {
-      if (condition_filter_ == nullptr || condition_filter_->filter(current_record)) {
+    if (ret == RC::SUCCESS) {
+      if (condition_filter_ == nullptr || condition_filter_->filter(current_record, ret)) {
         break; // got one
       }
-    } else if (RC::RECORD_EOF == ret) {
+    }
+    if (ret == RC::RECORD_EOF) {
       current_record.rid.page_num++;
       current_record.rid.slot_num = -1;
-    } else {
+    } else if (ret != RC::SUCCESS) {
       break; // ERROR
     }
   }

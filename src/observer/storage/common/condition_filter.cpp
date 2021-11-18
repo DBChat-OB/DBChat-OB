@@ -267,7 +267,7 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
         auto &t1 = v1.get(0), &t2 = v2.get(0);
         if (t1.size() != 1 || t2.size() != 1) {
             // 列数超过1的矢量无法参与比较
-            return 0xFD;
+            return 0xFB;
         }
         // 两边都是1x1的二维矢量
         // 退化为标量比较
@@ -330,13 +330,14 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
         case GREAT_THAN:
         case NO_OP:
             // 非平凡矢量无法被这些运算符作用，违反比较规则
-            result = 0xFC;
+            result = 0xFB;
     }
     return result;
 }
 
-bool DefaultConditionFilter::filter(const Record &rec) const
+bool DefaultConditionFilter::filter(const Record &rec, RC &err) const
 {
+    err = RC::SUCCESS; // 如果后续不设置为failure，默认为成功
   char *left_value = nullptr;
   char *right_value = nullptr;
   bool left_is_null = false;
@@ -423,6 +424,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
         tuples_right = nullptr;
     }
 
+    if (compare_result == 0xFB)  err = RC::INVALID_ARGUMENT; // 根据SQL规范，这个比较是错误的，需要将查询返回失败
     if (compare_result < -1 || compare_result > 1)  return false; // 比较时出现错误，直接跳过
     switch (comp_op_) {
         case EQUAL_TO:
@@ -493,9 +495,9 @@ RC CompositeConditionFilter::init(Table &table, const Condition *conditions, int
     return init((const ConditionFilter **) condition_filters, condition_num, true);
 }
 
-bool CompositeConditionFilter::filter(const Record &rec) const {
+bool CompositeConditionFilter::filter(const Record &rec, RC &err) const {
     for (int i = 0; i < filter_num_; i++) {
-        if (!filters_[i]->filter(rec)) {
+        if (!filters_[i]->filter(rec, err)) {
             return false;
         }
     }
