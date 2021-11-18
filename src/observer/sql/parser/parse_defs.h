@@ -41,6 +41,7 @@ typedef enum {
     GREAT_EQUAL,  //">="    4
     GREAT_THAN,   //">"     5
     CONTAINED_BY, // "in"   6
+    NOT_CONTAINED_BY, // "in"   7
     IS_CompOP,
     IS_NOT_CompOP,
     NO_OP

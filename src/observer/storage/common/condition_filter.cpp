@@ -272,8 +272,12 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
         Value flatten_v1, flatten_v2;
         if (v1.flatten(flatten_v1) && v2.flatten(flatten_v2)) {
             int compare_result = scalar_compare(flatten_v1, flatten_v2);
-            if (op == CONTAINED_BY) {
-                if (compare_result == 0) {
+            if (op == CONTAINED_BY || op == NOT_CONTAINED_BY) {
+                bool flag_compare = compare_result == 0;
+                if (op == NOT_CONTAINED_BY) {
+                    flag_compare = !flag_compare; // 了转反
+                }
+                if (flag_compare) {
                     return 1;
                 } else {
                     return 0;
@@ -292,6 +296,7 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
     // 由于CONTAINED_BY运算符的特殊性，需要与其他运算符区分开，因此这里需要知道具体的运算符
     int result = 0;
     switch (op) {
+        case NOT_CONTAINED_BY: // 比较结果不反转，在filter里面再反转
         case CONTAINED_BY: {
             // WHERE x IN y, y must be a table, x must be a scalar or an ordinary 1-dim vector
             result = 1; // initially as true (right contains left)
@@ -430,6 +435,8 @@ bool DefaultConditionFilter::filter(const Record &rec) const
             return compare_result > 0;
         case CONTAINED_BY:
             return compare_result != 0;
+        case NOT_CONTAINED_BY:
+            return compare_result == 0;
         case NO_OP:
             return false;
     }
