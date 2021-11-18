@@ -251,6 +251,11 @@ static int scalar_compare(const Value &v1, const Value &v2) {
 
 // 比较两个SQL矢量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
 static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
+    // 两个表的列不兼容，直接返回错误
+    if (v1.get_schema().fields().size() > 1 || v2.get_schema().fields().size() > 1) {
+        // illegal according to SQL specification
+        return 0xFB;
+    }
     // 有一个矢量是空的，按null处理
     if (op == CompOp::NO_OP)  return 0;
     if (v1.size() == 0 || v2.size() == 0) {
@@ -304,13 +309,9 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
         case CONTAINED_BY: {
             // WHERE x IN y, y must be a table, x must be a scalar or an ordinary 1-dim vector
             result = 1; // initially as true (right contains left)
-            if (v1.size() > 1) {
-                // illegal according to SQL specification
-                result = 0xFB;
-                break;
-            }
             for (auto &ele : v1.tuples()) {
                 const auto &vec = v2.tuples();
+
                 Tuple::clear();
                 Tuple::append_order_attr(0,0);
                 if (std::find(vec.begin(), vec.end(), ele) == vec.end()) {
@@ -400,6 +401,9 @@ bool DefaultConditionFilter::filter(const Record &rec, RC &err) const
         free_left = true;
         tuples_left = new TupleSet();
         tuples_left->add(Tuple(type_left, left_value));
+        TupleSchema schema;
+        schema.add(type_left, "<anonymous table>", "<anonymous field>", false);
+        tuples_left->set_schema(schema);
     }
 
     if (type_right == ATTR_TABLE) {
@@ -409,6 +413,9 @@ bool DefaultConditionFilter::filter(const Record &rec, RC &err) const
         free_right = true;
         tuples_right = new TupleSet();
         tuples_right->add(Tuple(type_right, right_value));
+        TupleSchema schema;
+        schema.add(type_right, "<anonymous table>", "<anonymous field>", false);
+        tuples_left->set_schema(schema);
     }
 
 
