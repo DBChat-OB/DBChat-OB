@@ -42,6 +42,8 @@ public:
 
     virtual void get_data(void *&ptr) const = 0;
 
+    virtual AttrType get_type() const = 0;
+
     void set_null(bool null_attr);
 
     virtual bool is_null()const = 0;
@@ -82,6 +84,10 @@ public:
 
     void get_data(void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::INTS;
     }
 
     void set_null(bool null_attr) {
@@ -136,6 +142,7 @@ public:
     int getIValue()  const override {
         return value_;
     }
+
     float getFValue()  const override {
         return (value_);
     }
@@ -153,8 +160,12 @@ public:
         return 0;
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::FLOATS;
     }
 
     void set_null(bool null_attr) {
@@ -188,19 +199,26 @@ public:
             os << value_;
         }
     }
-    int getIValue()  const override {
+
+    int getIValue() const override {
         return -1;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return -1;
     }
+
     int compare(const TupleValue &other) const override {
         const StringValue &string_other = (const StringValue &) other;
         return strcmp(value_.c_str(), string_other.value_.c_str());
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_c_str;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_c_str;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::CHARS;
     }
 
     void set_null(bool null_attr) {
@@ -213,7 +231,7 @@ public:
 
 private:
     std::string value_;
-    char  value_c_str[20];
+    char value_c_str[20];
 };
 
 class DateValue : public TupleValue {
@@ -221,9 +239,11 @@ public:
     explicit DateValue(unsigned int value, bool null_attr) : value_(value) {
         null_attr_ = null_attr;
     }
+
     explicit DateValue(time_t value) {
         this->value_ = value&0x00000000ffffffff;
     }
+
     void to_string(std::ostream &os) const override {
         if(null_attr_) {
             os << "null";
@@ -237,20 +257,26 @@ public:
         }
     }
 
-    int getIValue()  const override {
+    int getIValue() const override {
         return value_;
     }
-    float getFValue()  const override {
+
+    float getFValue() const override {
         return float(value_);
     }
+
     int compare(const TupleValue &other) const override {
 
         const DateValue &date_other = (const DateValue &) other;
         return value_ - date_other.value_;
     }
 
-    void  get_data (void * &ptr) const  override {
-        ptr = (void *)&value_;
+    void get_data(void *&ptr) const override {
+        ptr = (void *) &value_;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::DATE;
     }
 
     void set_null(bool null_attr){

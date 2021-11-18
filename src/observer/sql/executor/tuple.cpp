@@ -131,6 +131,30 @@ void Tuple::add(time_t value, bool null_attr) {
     add(new DateValue(value, null_attr));
 }
 
+// Create a Tuple with only one element of given type of data.
+Tuple::Tuple(AttrType type_, void *data) {
+    switch (type_) {
+            case CHARS:
+                add((char*)data, (int)strlen((char*)data), false);
+                break;
+            case INTS:
+                add(*(int*)data, false);
+                break;
+            case FLOATS:
+                add(*(float*)data, false);
+                break;
+            case DATE:
+                add(*(time_t*)data, false);
+                break;
+            case UNDEFINED:
+            case UNEVALUATED:
+            case ATTR_TABLE:
+                LOG_ERROR("Programming error: Trying to add value of unsupported type into Tuple.");
+                assert(0);
+                break;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string TupleField::to_string() const {
@@ -145,20 +169,22 @@ void TupleSchema::from_table(const Table *table, TupleSchema &schema) {
     for (int i = 0; i < field_num; i++) {
         const FieldMeta *field_meta = table_meta.field(i);
         if (field_meta->visible()) {
-            schema.add(field_meta->type(), table_name, field_meta->name(),field_meta->nullable());
+            schema.add(field_meta->type(), table_name, field_meta->name(), field_meta->nullable());
         }
     }
 }
 
 void TupleSchema::add(AttrType type, const char *table_name, const char *field_name, bool nullable) {
-    AggType  aggType=Null;
+    AggType aggType = Null;
+    fields_.emplace_back(type, table_name, field_name, nullable, aggType);
+    field_num++;
+}
+
+void TupleSchema::add_agg(AttrType type, const char *table_name, const char *field_name, bool nullable, AggType aggType) {
     fields_.emplace_back(type, table_name, field_name,nullable,aggType);
     field_num++;
 }
-void TupleSchema::add_agg(AttrType type, const char *table_name, const char *field_name, bool nullable,AggType aggType){
-    fields_.emplace_back(type, table_name, field_name,nullable,aggType);
-    field_num++;
-}
+
 void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const char *field_name, bool nullable) {
     for (const auto &field: fields_) {
         if (0 == strcmp(field.table_name(), table_name) &&
@@ -166,7 +192,7 @@ void TupleSchema::add_if_not_exists(AttrType type, const char *table_name, const
             return;
         }
     }
-    add(type, table_name, field_name,nullable);
+    add(type, table_name, field_name, nullable);
 }
 
 void TupleSchema::append(const TupleSchema &other) {
@@ -179,7 +205,7 @@ void TupleSchema::append(const TupleSchema &other) {
 
 void TupleSchema::append_if_not_exists(const TupleSchema &other) {
     for (const auto &field: other.fields()) {
-        add_if_not_exists(field.type(), field.table_name(), field.field_name(),field.nullable());
+        add_if_not_exists(field.type(), field.table_name(), field.field_name(), field.nullable());
     }
 }
 
@@ -416,6 +442,16 @@ Tuple *TupleSet::get(int index) {
 
 const std::vector<Tuple> &TupleSet::tuples() const {
     return tuples_;
+}
+
+bool TupleSet::flatten(Value &ret) const {
+    if (this->size() != 1)  return false;
+    auto &t = this->get(0);
+    if (t.size() != 1)  return false;
+    auto &v = t.get(0);
+    ret.type = v.get_type();
+    v.get_data(ret.data);
+    return true;
 }
 
 
