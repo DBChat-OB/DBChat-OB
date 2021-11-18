@@ -27,6 +27,7 @@ struct filter_map {
 bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;
+        tuples[0]->get(0).compare(tuples[1]->get(0));
         ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
                 tuples[filters[i].right_table]->get(filters[i].right_value));
         CompOp op=filters[i].op;

@@ -49,6 +49,7 @@ typedef struct _relattr{
     Extype extype;
     CalOp op;
     Value value;
+    int num;
     struct _relattr* first;
     struct _relattr* second;
     int id;

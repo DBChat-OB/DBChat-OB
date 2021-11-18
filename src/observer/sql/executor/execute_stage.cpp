@@ -50,7 +50,7 @@ static RC schema_add_field_except_exist(Table *table, const char *field_name, Tu
 
 RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, const char *table_name,
                              SelectExeNode &select_node, TupleSchema tupleSchema);
-
+bool is_simple_ex(RelAttr& relAttr,std::vector<RelAttr>&ret);
 //! Constructor
 ExecuteStage::ExecuteStage(const char *tag) : Stage(tag) {}
 
@@ -246,7 +246,36 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right) {
         }
     }
 }
+bool is_simple_ex(RelAttr& relAttr,std::vector<RelAttr>&ret){
+    bool is_simple= true;
+    switch (relAttr.extype) {
+        case E:{
 
+        }
+        case T:{
+            if(relAttr.second== nullptr){
+                is_simple= is_simple_ex(*relAttr.first,ret);
+            } else{
+                is_simple= false;
+                is_simple_ex(*relAttr.first,ret);
+                is_simple_ex(*relAttr.second,ret);
+            }
+        }
+        case F:{
+            is_simple= false;
+            is_simple_ex(*relAttr.first,ret);
+            break;
+        }
+        case id:{
+            is_simple= false;
+            break;
+        }
+        case val:{
+            break;
+        }
+    }
+    return true;
+}
 
 /**
  * 创建输出模式并进行校验,构造每个表的选择属性,schemas i是realtions i的投影模式,并构造flitet
@@ -261,8 +290,8 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
     for (size_t i = 0; i < selects.relation_num - 1; i++) {
         table_names.emplace_back(selects.relations[i]);
     }
-    for (int i = 0; i < selects.attr_num; i++) {//遍历要从后往前，因为sql解析的缘故
-        const RelAttr &attr = selects.attributes[i];
+    for (int i = 0; i < selects.attr_num; i++) {//遍历要从后往前，因为sql解析的缘故  //TODO 这个地方不加属性了，全部按照*,但是要查看每个属性是否在里面，需要获得表达式的属性。
+        const RelAttr &attr = selects.attributes[i];//这里是表达式
         if (nullptr == attr.relation_name) {
             if (0 == strcmp("*", attr.attribute_name)) {
                 // 列出所有查询表的所有字段 是不是也要反着来
@@ -326,7 +355,7 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
         }
     }
     std::vector<DefaultConditionFilter *> condition_filters;
-    for (size_t i = 0; i < selects.condition_num; i++) {
+    for (size_t i = 0; i < selects.condition_num; i++) {//TODO 这个地方筛选表达式的比较，并且把最简单表达式转换一下
         const Condition &condition = selects.conditions[i];//conditon必须在from里面
         if (condition.left_is_attr == 1 && condition.right_is_attr == 1 &&
             strcmp(condition.right_attr.relation_name, condition.left_attr.relation_name) != 0) {//表之间联系
@@ -334,7 +363,6 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
             //先找左边
             AttrType left;
             AttrType right;
-
             int count = 0;
             for (int j = 0; j < selects.relation_num; j++) {
                 if (strcmp(condition.left_attr.relation_name, selects.relations[j]) == 0) {

@@ -231,6 +231,7 @@ public:
 
 private:
     std::vector<TupleField> fields_;
+    std::vector<RelAttr>;
     int field_num{0};
 };
 
