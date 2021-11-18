@@ -254,6 +254,10 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
     // 有一个矢量是空的，按null处理
     if (op == CompOp::NO_OP)  return 0;
     if (v1.size() == 0 || v2.size() == 0) {
+        if (op == CONTAINED_BY || op == NOT_CONTAINED_BY) {
+            // 根据mariadb，两边只要出现一个空就是假的，这里直接返回了
+            return 0;
+        }
         // 无法比较，直接返回比较失败
         return 0xFC;
     }
@@ -274,9 +278,9 @@ static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
             int compare_result = scalar_compare(flatten_v1, flatten_v2);
             if (op == CONTAINED_BY || op == NOT_CONTAINED_BY) {
                 bool flag_compare = compare_result == 0;
-                if (op == NOT_CONTAINED_BY) {
-                    flag_compare = !flag_compare; // 了转反
-                }
+//                if (op == NOT_CONTAINED_BY) {
+//                    flag_compare = !flag_compare; // 了转反
+//                }
                 if (flag_compare) {
                     return 1;
                 } else {
