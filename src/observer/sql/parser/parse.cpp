@@ -152,7 +152,7 @@ void selects_destroy(Selects *selects) {
 
   for (size_t i = 0; i < selects->relation_num; i++) {
     free(selects->relations[i]);
-    selects->relations[i] = NULL;
+    selects->relations[i] = nullptr;
   }
   selects->relation_num = 0;
 
@@ -160,6 +160,11 @@ void selects_destroy(Selects *selects) {
     condition_destroy(&selects->conditions[i]);
   }
   selects->condition_num = 0;
+
+  if (selects->sub_selection != nullptr) {
+      // 有子SELECT查询，递归销毁子查询
+      selects_destroy(selects->sub_selection);
+  }
 }
 
 void inserts_init(Inserts *inserts, const char *relation_name, LexTuple tuples[], size_t tuple_count) {
@@ -316,8 +321,8 @@ void query_init(Query *query) {
 }
 
 Query *query_create() {
-  Query *query = (Query *)malloc(sizeof(Query));
-  if (nullptr == query) {
+  auto *query = (Query *)malloc(sizeof(Query));
+  if (query == nullptr) {
     LOG_ERROR("Failed to alloc memroy for query. size=%ld", sizeof(Query));
     return nullptr;
   }

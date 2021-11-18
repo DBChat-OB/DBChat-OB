@@ -608,7 +608,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
             (condition.left_is_attr == 1 && condition.right_is_attr == 1) // 左右都是属性名，并且表名都符合
                 ) {
             DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
-            rc = condition_filter->init(*this, condition);
+            rc = condition_filter->init(*this, condition, trx);
             if (rc != RC::SUCCESS) {
                 delete condition_filter;
                 for (DefaultConditionFilter *&filter: condition_filters) {

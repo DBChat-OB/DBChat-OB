@@ -40,6 +40,7 @@ typedef enum {
     LESS_THAN,    //"<"     3
     GREAT_EQUAL,  //">="    4
     GREAT_THAN,   //">"     5
+    CONTAINED_BY, // "in"   6
     IS_CompOP,
     IS_NOT_CompOP,
     NO_OP
@@ -47,7 +48,9 @@ typedef enum {
 
 //属性值类型
 typedef enum {
-    UNDEFINED, CHARS, INTS, FLOATS, DATE
+    UNDEFINED, CHARS, INTS, FLOATS, DATE,
+    UNEVALUATED, // 未被求值的一个抽象值或值表达式，如子SQL语句
+    ATTR_TABLE // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
 } AttrType;
 
 //属性值
@@ -78,7 +81,8 @@ typedef struct _Condition {
 } Condition;
 
 // struct of select
-typedef struct {
+typedef struct s_sql_query Selects;
+typedef struct s_sql_query {
     size_t attr_num;               // Length of attrs in Select clause
     RelAttr attributes[MAX_NUM];    // attrs in Select clause
     size_t relation_num;           // Length of relations in Fro clause
@@ -89,7 +93,26 @@ typedef struct {
     RelAttr orders[MAX_NUM]; // 排序的属性
     size_t ascs[MAX_NUM];//升降序
     int asc;//排序升降
+    // 子查询。如果为NULL，表示没有子查询语句。在parser遇到子查询语句时创建，在selects_destroy过程中销毁
+    // 仅仅在解析表达式时有用到，SQL执行时这里总是NULL，子查询语句被放到了conditions列表里，作为一个UNEVALUATED值
+    Selects *sub_selection;
 } Selects;
+
+typedef enum {
+    UE_SELECT // 是一个SQL SELECT语句
+    // 后续如算术表达式等未求值的属性值，可以在这里继续扩充
+} UE_TYPE;
+
+// 未被求出字面值的属性值，对应于AttrType::UNEVALUATED
+// 此时Value结构体的data字段即指向一个该结构体的实例
+// 在参与比较或运算时，需要先对其求值以获取实际值
+typedef struct {
+    UE_TYPE type;
+    union {
+        Selects select;
+        // 其他类型可以在此继续扩充，如算术表达式的信息，可以把语法树或者字符串存在这里
+    } data;
+} Unevaluated;
 
 // struct of insert
 typedef struct {
