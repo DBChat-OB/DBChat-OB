@@ -973,6 +973,54 @@ condition:
 			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 0, NULL, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
+	| LBRACE subQuery RBRACE comOp ID // x > (SELECT y FROM b)
+		{
+			// 将子查询视作一个抽象的、惰性求值的值
+			// 把子SQL语句包装成一个Unevaluated对象，数据库引擎按需求值
+			RelAttr left_attr;
+			relation_attr_init(&left_attr, NULL, $5);
+
+			Unevaluated *uneval = malloc(sizeof(Unevaluated));
+			assert(uneval != NULL);
+			uneval->type = UE_SELECT;
+			Selects *sub_sel = CONTEXT->ssql->sstr.selection.sub_selection;
+			assert(sub_sel != NULL);
+			uneval->data.select = *(sub_sel);
+			free(sub_sel);
+			CONTEXT->ssql->sstr.selection.sub_selection = NULL; // 这个递归结构好像没啥用，直接扬了吧
+
+			Value rval; // right value
+			rval.type = UNEVALUATED;
+			rval.data = uneval;
+
+			Condition condition;
+			condition_init(&condition, CONTEXT->comp, 0, NULL, &rval, 1, &left_attr, NULL);
+			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
+		}
+	| LBRACE subQuery RBRACE comOp ID DOT ID // t.x > (SELECT y FROM b)
+		{
+			// 将子查询视作一个抽象的、惰性求值的值
+			// 把子SQL语句包装成一个Unevaluated对象，数据库引擎按需求值
+			RelAttr left_attr;
+			relation_attr_init(&left_attr, $5, $7);
+
+			Unevaluated *uneval = malloc(sizeof(Unevaluated));
+			assert(uneval != NULL);
+			uneval->type = UE_SELECT;
+			Selects *sub_sel = CONTEXT->ssql->sstr.selection.sub_selection;
+			assert(sub_sel != NULL);
+			uneval->data.select = *(sub_sel);
+			free(sub_sel);
+			CONTEXT->ssql->sstr.selection.sub_selection = NULL; // 这个递归结构好像没啥用，直接扬了吧
+
+			Value rval; // right value
+			rval.type = UNEVALUATED;
+			rval.data = uneval;
+
+			Condition condition;
+			condition_init(&condition, CONTEXT->comp, 0, NULL, &rval, 1, &left_attr, NULL);
+			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
+		}
     ;
 
 subQuery:
