@@ -79,7 +79,20 @@ public:
 
     int compare(const TupleValue &other) const override {
         const IntValue &int_other = (const IntValue &) other;
-        return value_ - int_other.value_;
+        if(this->is_null()||other.is_null()){
+            return 10;
+        }
+        int ret=value_ - int_other.value_;
+        if(ret==0){
+            return 0;
+        }
+        else if(ret <0){
+            return -1;
+        }
+        else{
+            return 1;
+        }
+
     }
 
     void get_data(void *&ptr) const override {
@@ -148,6 +161,9 @@ public:
     }
 
     int compare(const TupleValue &other) const override {
+        if(this->is_null()||other.is_null()){
+            return 10;
+        }
         const FloatValue &float_other = (const FloatValue &) other;
         float result = value_ - float_other.value_;
 
@@ -209,10 +225,19 @@ public:
     }
 
     int compare(const TupleValue &other) const override {
+        if(this->is_null()||other.is_null()){
+            return 10;
+        }
         const StringValue &string_other = (const StringValue &) other;
-        return strcmp(value_.c_str(), string_other.value_.c_str());
+        int ret = strcmp(value_.c_str(), string_other.value_.c_str());
+        if (ret == 0) {
+            return 0;
+        } else if (ret < 0) {
+            return -1;
+        } else {
+            return 1;
+        }
     }
-
     void get_data(void *&ptr) const override {
         ptr = (void *) &value_c_str;
     }
@@ -266,9 +291,20 @@ public:
     }
 
     int compare(const TupleValue &other) const override {
-
+        if(this->is_null()||other.is_null()){
+            return 10;
+        }
         const DateValue &date_other = (const DateValue &) other;
-        return value_ - date_other.value_;
+        int ret=value_ - date_other.value_;
+        if(ret==0){
+            return 0;
+        }
+        else if(ret <0){
+            return -1;
+        }
+        else{
+            return 1;
+        }
     }
 
     void get_data(void *&ptr) const override {

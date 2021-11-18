@@ -26,10 +26,8 @@ struct filter_map {
 bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;
-        if(tuples[filters[i].left_value]->get(filters[i].left_value).is_null()||
-                tuples[filters[i].right_value]->get(filters[i].right_value).is_null()){
-            return false;
-        }
+//        std::shared_ptr<TupleValue> left=tuples[filters[i].left_value]->getP(filters[i].left_value);
+//        std::shared_ptr<TupleValue> right=tuples[filters[i].right_value]->getP(filters[i].right_value);
         ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
                 tuples[filters[i].right_table]->get(filters[i].right_value));
         switch (filters[i].op) {
@@ -39,27 +37,26 @@ bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
                 }
                 break;
             }
-
             case CompOp::GREAT_EQUAL: {
-                if (ret < 0) {
+                if (ret!=0||ret!=1) {
                     return false;
                 }
                 break;
             }
             case CompOp::GREAT_THAN: {
-                if (ret <= 0) {
+                if (ret !=-1) {
                     return false;
                 }
                 break;
             }
             case CompOp::LESS_EQUAL: {
-                if (ret > 0) {
+                if (ret!=0||ret!=-1) {
                     return false;
                 }
                 break;
             }
             case CompOp::LESS_THAN: {
-                if (ret >= 0) {
+                if (ret!=-1) {
                     return false;
                 }
                 break;
@@ -74,7 +71,6 @@ bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
                 break;
 
         }
-
     }
     return true;
 }

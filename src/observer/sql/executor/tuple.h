@@ -107,7 +107,9 @@ public:
     const TupleValue &get(int index) const {
         return *values_[index];
     }
-
+    std::shared_ptr<TupleValue> getP(int index){
+        return values_[index];
+    }
     const std::shared_ptr<TupleValue> &get_pointer(int index) const {
         return values_[index];
     }
