@@ -666,11 +666,16 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
                     end = begin;
                 }
             }
-            std::tuple<int, int> range = std::make_tuple(begin, end);
-            groups.emplace_back(range);
+            if(tupleSet.size()!=0){
+                std::tuple<int, int> range = std::make_tuple(begin, end);
+                groups.emplace_back(range);
+            }
         } else {
-            std::tuple<int, int> range = std::make_tuple(0, tupleSet.size() - 1);
-            groups.emplace_back(range);
+            if(tupleSet.size()!=0){
+                std::tuple<int, int> range = std::make_tuple(0, tupleSet.size() - 1);
+                groups.emplace_back(range);
+            }
+
         }
         for (int i = 0; i < groups.size(); i++) {
             cal_agg(tupleSet, ret, std::get<0>(groups.at(i)), std::get<1>(groups.at(i)));

@@ -828,7 +828,7 @@ condition:
 			// $$->right_is_attr = 1;		//属性
 			// $$->right_attr.relation_name=$5;
 			// $$->right_attr.attribute_name=$7;
-    }
+        }
 	| ID IN { CONTEXT->comp = CONTAINED_BY; } LBRACE subQuery RBRACE // x IN (SELECT y FROM b)
 		{
 			// 将子查询视作一个抽象的、惰性求值的值
