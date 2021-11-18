@@ -26,6 +26,10 @@ struct filter_map {
 bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;
+        if(tuples[filters[i].left_value]->get(filters[i].left_value).is_null()||
+                tuples[filters[i].right_value]->get(filters[i].right_value).is_null()){
+            return false;
+        }
         ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
                 tuples[filters[i].right_table]->get(filters[i].right_value));
         switch (filters[i].op) {
