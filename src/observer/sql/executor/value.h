@@ -222,7 +222,7 @@ public:
         null_attr_ = null_attr;
     }
     explicit DateValue(time_t value) {
-        this->value_ = value&&0x00000000ffffffff;
+        this->value_ = value&0x00000000ffffffff;
     }
     void to_string(std::ostream &os) const override {
         if(null_attr_) {

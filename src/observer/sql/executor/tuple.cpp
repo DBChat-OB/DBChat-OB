@@ -436,7 +436,7 @@ void TupleRecordConverter::add_record(const char *record) {
     for (const TupleField &field: schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
         assert(field_meta != nullptr);
-        bool null_attr = ((*(unsigned *) (record + field_meta->offset()-4))&&0x00000001==0x00000001);
+        bool null_attr = ((*(unsigned *) (record + field_meta->offset()-4))&0x00000001==0x00000001);
         switch (field_meta->type()) {
             case INTS: {
                 int value = *(int *) (record + field_meta->offset());

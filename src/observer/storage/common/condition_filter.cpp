@@ -152,7 +152,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
   bool left_is_null = false;
   bool right_is_null = false;
   if (left_.is_attr) {  // value
-      left_is_null = ((*(unsigned *) (rec.data + left_.attr_offset-4))&&0x00000001==0x00000001);
+      left_is_null = ((*(unsigned *) (rec.data + left_.attr_offset-4))&0x00000001==0x00000001);
     left_value = (char *)(rec.data + left_.attr_offset);
   } else {
       left_is_null = left_.is_null;
@@ -160,7 +160,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
   }
 
   if (right_.is_attr) {
-      right_is_null = ((*(unsigned *) (rec.data + right_.attr_offset-4))&&0x00000001==0x00000001);
+      right_is_null = ((*(unsigned *) (rec.data + right_.attr_offset-4))&0x00000001==0x00000001);
     right_value = (char *)(rec.data + right_.attr_offset);
   } else {
       right_is_null = right_.is_null;
