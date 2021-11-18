@@ -241,7 +241,7 @@ public:
     }
 
     explicit DateValue(time_t value) {
-        this->value_ = value && 0x00000000ffffffff;
+        this->value_ = value&0x00000000ffffffff;
     }
 
     void to_string(std::ostream &os) const override {

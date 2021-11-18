@@ -830,7 +830,7 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
     LOG_ERROR("Failed to alloc memory for key. size=%d", file_header_.key_length);
     return RC::NOMEM;
   }
-  if(((*(unsigned *) (pkey-4))&&0x00000001==0x00000001)){
+  if(((*(unsigned *) (pkey-4))&0x00000001==0x00000001)){
       memcpy(key, &null_key, 4);
   }
   else {
@@ -868,6 +868,7 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
       return rc;
     }
     free(key);
+    print_tree();
     return SUCCESS;
   }
   else{
@@ -876,11 +877,11 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
       free(key);
       return rc;
     }
-
     // print();
 
     rc=insert_into_leaf_after_split(leaf_page,key,rid);
     free(key);
+    print_tree();
     return SUCCESS;
   }
 }
@@ -1478,7 +1479,7 @@ RC BplusTreeHandler::delete_entry(const char *data, const RID *rid) {
     return RC::NOMEM;
   }
   unsigned int null_key = 0;
-    if(((*(unsigned *) (data-4))&&0x00000001==0x00000001)){
+    if(((*(unsigned *) (data-4))&0x00000001==0x00000001)){
         memcpy(pkey, &null_key, 4);
     }
     else {
@@ -1852,6 +1853,9 @@ bool BplusTreeScanner::satisfy_condition(const char *pkey) {
   if(comp_op_ == NO_OP || comp_op_ == IS_NOT_CompOP || comp_op_==IS_CompOP){
     return true;
   }
+    //针对null的key直接满足条件拿出来然后给filter过滤就行
+    if (*(unsigned int *)pkey==0)
+        return true;
 
   AttrType  attr_type = index_handler_.file_header_.attr_type;
   switch(attr_type){

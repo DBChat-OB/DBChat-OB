@@ -212,9 +212,8 @@ static double scalar_to_double(const Value v) {
         case FLOATS:
             return *(float*)(v.data);
         case DATE: {
-            time_t t;
-            mytime::chars_to_date((char*)v.data, t);
-            return (unsigned int)t;
+            // 这里date已经被转换为uint32了，按照uint32处理
+            return *(unsigned int*)(v.data);
         }
         case UNEVALUATED:
         case UNDEFINED:
@@ -227,7 +226,12 @@ static double scalar_to_double(const Value v) {
 // 比较两个SQL标量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
 static int scalar_compare(const Value &v1, const Value &v2) {
     // 两个字符串相比时，按照字符串比较处理
-    if (v1.type == CHARS && v2.type == CHARS)  return strcmp((char*)v1.data, (char*)v2.data);
+    if (v1.type == CHARS && v2.type == CHARS) {
+        int cmp = strcmp((char*)v1.data, (char*)v2.data);
+        if (cmp > 0)  return 1;
+        if (cmp == 0)  return 0;
+        if (cmp < 0)  return -1;
+    }
 
     // 否则，将按照C类型提升规则进行比较
     // 在当前情况里，所有值均可被float64表示，因此全部转换为double再比较即可
@@ -246,7 +250,6 @@ static int scalar_compare(const Value &v1, const Value &v2) {
 }
 
 // 比较两个SQL矢量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
-
 static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
     // 有一个矢量是空的，按null处理
     if (op == CompOp::NO_OP)  return 0;
@@ -328,19 +331,50 @@ bool DefaultConditionFilter::filter(const Record &rec) const
   bool left_is_null = false;
   bool right_is_null = false;
   if (left_.is_attr) {  // value
-      left_is_null = ((*(unsigned *) (rec.data + left_.attr_offset-4))&&0x00000001==0x00000001);
-      left_value = (char *)(rec.data + left_.attr_offset);
+      left_is_null = ((*(unsigned *) (rec.data + left_.attr_offset-4))&0x00000001==0x00000001);
+    left_value = (char *)(rec.data + left_.attr_offset);
   } else {
       left_is_null = left_.is_null;
       left_value = (char *)left_.value;
   }
 
-    if (right_.is_attr) {
-        right_is_null = ((*(unsigned *) (rec.data + right_.attr_offset-4))&&0x00000001==0x00000001);
-        right_value = (char *) (rec.data + right_.attr_offset);
-    } else {
-        right_is_null = right_.is_null;
-        right_value = (char *) right_.value;
+  if (right_.is_attr) {
+      right_is_null = ((*(unsigned *) (rec.data + right_.attr_offset-4))&0x00000001==0x00000001);
+    right_value = (char *)(rec.data + right_.attr_offset);
+  } else {
+      right_is_null = right_.is_null;
+    right_value = (char *)right_.value;
+  }
+
+    //null的比较逻辑
+    if (left_is_null||right_is_null) {
+        if (comp_op_==IS_CompOP||comp_op_==IS_NOT_CompOP) {
+            switch (comp_op_) {
+                case IS_CompOP:
+                    if (left_is_null&&right_is_null)
+                        return true;
+                    else
+                        return false;
+                    break;
+                case IS_NOT_CompOP:
+                    if(left_is_null&&right_is_null)
+                        return false;
+                    else if(left_is_null&&!right_is_null)
+                        return false;
+                    else if(!left_is_null&&right_is_null)
+                        return true;
+                    else
+                        return false;
+                    break;
+                default:
+                    return false;
+                    break;
+            }
+        }
+        else {
+            //用其他符号对null进行比较一律返回false
+            return false;
+        }
     }
 
     // 直接把两边的数据都转成矢量，按照矢量比较规则进行比较
@@ -365,36 +399,7 @@ bool DefaultConditionFilter::filter(const Record &rec) const
         tuples_right->add(Tuple(type_right, right_value));
     }
 
-    //null的比较逻辑
-    if (left_is_null||right_is_null) {
-        if (comp_op_==IS_CompOP||comp_op_==IS_NOT_CompOP) {
-            switch (comp_op_) {
-                case IS_CompOP:
-                    if (left_is_null&&right_is_null)
-                        return true;
-                    else
-                        return false;
-                    break;
-                    case IS_NOT_CompOP:
-                        if(left_is_null&&right_is_null)
-                            return false;
-                        else if(left_is_null&&!right_is_null)
-                            return false;
-                        else if(!left_is_null&&right_is_null)
-                            return true;
-                        else
-                            return false;
-                        break;
-                        default:
-                            return false;
-                            break;
-            }
-        }
-        else {
-            //用其他符号对null进行比较一律返回false
-            return false;
-        }
-    }
+
 
     int compare_result = vector_compare(*tuples_left, *tuples_right, comp_op_);
 

@@ -26,6 +26,10 @@ struct filter_map {
 bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
     for (int i = 0; i < num; i++) {
         int ret;
+        if(tuples[filters[i].left_value]->get(filters[i].left_value).is_null()||
+                tuples[filters[i].right_value]->get(filters[i].right_value).is_null()){
+            return false;
+        }
         ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
                 tuples[filters[i].right_table]->get(filters[i].right_value));
         switch (filters[i].op) {
@@ -472,7 +476,7 @@ void TupleRecordConverter::add_record(const char *record) {
     for (const TupleField &field: schema.fields()) {
         const FieldMeta *field_meta = table_meta.field(field.field_name());
         assert(field_meta != nullptr);
-        bool null_attr = ((*(unsigned *) (record + field_meta->offset()-4))&&0x00000001==0x00000001);
+        bool null_attr = ((*(unsigned *) (record + field_meta->offset()-4))&0x00000001==0x00000001);
         switch (field_meta->type()) {
             case INTS: {
                 int value = *(int *) (record + field_meta->offset());
