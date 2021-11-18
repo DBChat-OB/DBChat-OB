@@ -951,8 +951,13 @@ void cal_agg(TupleSet &tupleSet, TupleSet &ret, int begin, int end) {
                         }
                     }
                 }
-                float ret=avg*1.0/size;
-                tuple.add(ret, false);
+                if(size==0){
+                    tuple.add(1, true);
+                } else{
+                    float ret=avg*1.0/size;
+                    tuple.add(ret, false);
+                }
+
                 break;
             }
             case Null: {
