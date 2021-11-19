@@ -28,7 +28,7 @@ typedef struct ParserContext {
   Condition conditions[MAX_NUM];
   CompOp comp;
   char id[MAX_NUM];
-  CreateMultiIndex *multi_index;
+  int is_unique_index;
 } ParserContext;
 
 // 在解析子查询时，存储父查询信息的临时空间
@@ -211,7 +211,6 @@ command:
 	| ATT
 	| groups
 	| group_list
-	| create_multi_index
     ;
 
 exit:			
@@ -268,33 +267,23 @@ desc_table:
     ;
 
 create_index:		/*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE unique_or_not INDEX ID ON ID LBRACE ID
 		{
-			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
-			create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5, $7, false);
-		}
-		|
-		CREATE UNIQUE INDEX ID ON ID LBRACE ID RBRACE
-		{
-			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
-                        create_index_init(&CONTEXT->ssql->sstr.create_index, $4, $6, $8, true);
-		}
+			CONTEXT->ssql->flag = SCF_CREATE_INDEX; //"create_index";
+			// 在处理index_column_id_list之前初始化create_index结构体
+			create_index_init(&CONTEXT->ssql->sstr.create_index, $4, $6, $8, CONTEXT->is_unique_index);
+		} index_column_id_list RBRACE
     ;
-create_multi_index: /*建立多列索引的语法解析树*/
-	CREATE INDEX ID {
-	CONTEXT->multi_index->index_name = strdup($3);
-	} ON ID LBRACE ID INDEX_ID_LIST RBRACE
-		{
 
-		}
-INDEX_ID_LIST:
-	COMMA ID {
+unique_or_not:
+    { CONTEXT->is_unique_index = 0; } | UNIQUE { CONTEXT->is_unique_index = 1; } ;
 
-	}
-	|COMMA ID INDEX_ID_LIST {
-
-	}
-
+index_column_id_list:
+	/* empty or */
+	{} | COMMA ID {
+		create_index_add_attribute(&CONTEXT->ssql->sstr.create_index, $2);
+	} index_column_id_list
+	;
 
 drop_index:			/*drop index 语句的语法解析树*/
     DROP INDEX ID

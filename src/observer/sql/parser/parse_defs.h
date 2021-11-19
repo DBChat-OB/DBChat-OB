@@ -159,18 +159,12 @@ typedef struct {
 
 // struct of create_index
 typedef struct {
-    char *index_name;      // Index name
-    char *relation_name;   // Relation name
-    char *attribute_name;  // Attribute name
-    bool unique_attr;
+    char *index_name; // 索引名
+    char *relation_name; // 表名
+    unsigned int attribute_count; // 包含的属性个数
+    char *attribute_names[MAX_NUM]; // 属性名
+    bool unique_attr; // 是否为UNIQUE索引
 } CreateIndex;
-
-typedef struct {
-    char *index_name;
-    char *relation_name;
-    size_t attribute_count;
-    char *attribute_names[MAX_NUM];
-} CreateMultiIndex;
 
 // struct of  drop_index
 typedef struct {
@@ -197,7 +191,6 @@ union Queries {
     DropIndex drop_index;
     DescTable desc_table;
     LoadData load_data;
-    CreateMultiIndex create_multi_index;
     char *errors;
 };
 
@@ -221,7 +214,6 @@ enum SqlCommandFlag {
     SCF_ROLLBACK,
     SCF_LOAD_DATA,
     SCF_HELP,
-    SCF_CREATE_MULTI_INDEX,
     SCF_EXIT
 };
 // struct of flag and sql_struct
@@ -277,13 +269,10 @@ void create_table_destroy(CreateTable *create_table);
 void drop_table_init(DropTable *drop_table, const char *relation_name);
 void drop_table_destroy(DropTable *drop_table);
 
-void create_index_init(
-        CreateIndex *create_index, const char *index_name, const char *relation_name, const char *attr_name, bool unique_attr);
-void create_index_destroy(CreateIndex *create_index);
-
-void create_multi_index_init_name(CreateMultiIndex *create_multi_index, const char *index_name, const char *relation_name);
-void create_multi_index_append_attribute_name(CreateMultiIndex *create_multi_index, const char *attribute_name);
-void create_multi_index_destroy(CreateMultiIndex *create_multi_index);
+void create_index_init(CreateIndex *obj, const char *index_name,
+                       const char *relation_name, const char *attr_name, bool unique_attr);
+void create_index_add_attribute(CreateIndex *obj, const char *attr_name);
+void create_index_destroy(CreateIndex *obj);
 
 void drop_index_init(DropIndex *drop_index, const char *index_name);
 void drop_index_destroy(DropIndex *drop_index);
