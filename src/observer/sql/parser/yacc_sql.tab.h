@@ -70,53 +70,54 @@ extern int yydebug;
     TRX_ROLLBACK = 276,
     INT_T = 277,
     STRING_T = 278,
-    FLOAT_T = 279,
-    HELP = 280,
-    EXIT = 281,
-    DOT = 282,
-    INTO = 283,
-    VALUES = 284,
-    FROM = 285,
-    WHERE = 286,
-    AND = 287,
-    SET = 288,
-    ON = 289,
-    LOAD = 290,
-    DATA = 291,
-    DATE_T = 292,
-    INFILE = 293,
-    EQ = 294,
-    LT = 295,
-    GT = 296,
-    LE = 297,
-    GE = 298,
-    NE = 299,
-    IN = 300,
-    MAX = 301,
-    MIN = 302,
-    COUNT = 303,
-    AVG = 304,
-    ORDER = 305,
-    BY = 306,
-    ASC = 307,
-    INNER = 308,
-    JOIN = 309,
-    UNIQUE = 310,
-    GROUP = 311,
-    NULLABLE = 312,
-    NULL_K = 313,
-    NOT = 314,
-    IS = 315,
-    ADD = 316,
-    SUB = 317,
-    DIV = 318,
-    NUMBER = 319,
-    FLOAT = 320,
-    ID = 321,
-    PATH = 322,
-    SSS = 323,
-    STAR = 324,
-    STRING_V = 325
+    TEXT_T = 279,
+    FLOAT_T = 280,
+    HELP = 281,
+    EXIT = 282,
+    DOT = 283,
+    INTO = 284,
+    VALUES = 285,
+    FROM = 286,
+    WHERE = 287,
+    AND = 288,
+    SET = 289,
+    ON = 290,
+    LOAD = 291,
+    DATA = 292,
+    DATE_T = 293,
+    INFILE = 294,
+    EQ = 295,
+    LT = 296,
+    GT = 297,
+    LE = 298,
+    GE = 299,
+    NE = 300,
+    IN = 301,
+    MAX = 302,
+    MIN = 303,
+    COUNT = 304,
+    AVG = 305,
+    ORDER = 306,
+    BY = 307,
+    ASC = 308,
+    INNER = 309,
+    JOIN = 310,
+    UNIQUE = 311,
+    GROUP = 312,
+    NULLABLE = 313,
+    NULL_K = 314,
+    NOT = 315,
+    IS = 316,
+    ADD = 317,
+    SUB = 318,
+    DIV = 319,
+    NUMBER = 320,
+    FLOAT = 321,
+    ID = 322,
+    PATH = 323,
+    SSS = 324,
+    STAR = 325,
+    STRING_V = 326
   };
 #endif
 
@@ -124,7 +125,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 158 "yacc_sql.y"
+#line 159 "yacc_sql.y"
 
   struct _Attr *attr;
   struct _Condition *condition1;
@@ -134,7 +135,7 @@ union YYSTYPE
   float floats;
 	char *position;
 
-#line 138 "yacc_sql.tab.h"
+#line 139 "yacc_sql.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
