@@ -74,14 +74,15 @@ private:
   AttrType type_left;
   AttrType type_right;
   CompOp   comp_op_ = NO_OP;
-  bool     field_type_compare_compatible_table[7][7] = {
-          true, true, true, true, true, false, true,
-          true, true, false, false, false, false, true,
-          true, false, true, false, false, false, true,
-          true, false, false, true, true, false, true,
-          true, false, false, true, true, false, true,
-          false, false, false, false, false, false, true,
-          true, true, true, true, true, true, true
+  int     field_type_compare_compatible_table[8][8] = {
+          {1, 1, 1, 1, 1, 1, 0, 1},
+          {1, 1, 0, 0, 0, 1, 0, 1},
+          {1, 0, 1, 0, 0, 0, 0, 1},
+          {1, 0, 0, 1, 1, 0, 0, 1},
+          {1, 0, 0, 1, 1, 0, 0, 1},
+          {1, 1, 0, 0, 0, 0, 0, 1},
+          {1, 0, 0, 0, 0, 0, 0, 1},
+          {1, 1, 1, 1, 1, 1, 1, 1}
   };
 };
 
