@@ -58,7 +58,7 @@ uint32_t HeapManager::put(const char *value) {
 const char *HeapManager::get(uint32_t pos) {
     fseek(fp, pos, SEEK_SET);
     char *buf = (char *) malloc(4096 + 4);
-    if (fgets(buf, 4096, fp) == nullptr) {
+    if (fgets(buf, 4096 + 1, fp) == nullptr) {
         LOG_ERROR("fgets failed. pos=%u, errno=%d.\n", pos, errno);
         strcpy(buf, "<error>");
     }
