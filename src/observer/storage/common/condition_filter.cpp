@@ -252,7 +252,7 @@ static int scalar_compare(const Value &v1, const Value &v2) {
 // 比较两个SQL矢量，返回1表示大于，0表示等于，-1表示小于，其他值表示无法比较。
 static int vector_compare(const TupleSet &v1, const TupleSet &v2, CompOp op) {
     // 两个表的列不兼容，直接返回错误
-    if (v1.get_schema().fields().size() > 1 || v2.get_schema().fields().size() > 1) {
+    if (v1.get_schema().get_col_number() > 1 || v2.get_schema().get_col_number() > 1) {
         // illegal according to SQL specification
         return 0xFB;
     }

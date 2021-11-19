@@ -10,7 +10,7 @@
 #include<stdlib.h>
 #include<string.h>
 #include<assert.h>
-
+int yydebug=1;
 typedef struct ParserContext {
   Query * ssql;
   size_t select_length;
@@ -648,12 +648,15 @@ F:
 	LBRACE E RBRACE{
 		f_e();
 	}
+	|
 	SUB LBRACE E RBRACE{
 			set_sub();
-        		f_e();
-        }
+	}
 	|SUB ATT{
-		set_sub();
+        		set_sub();
+        	}
+	|ATT{
+		//set_sub();
 	}
         |value{
         	Value *value = &CONTEXT->values[CONTEXT->value_length - 1];
