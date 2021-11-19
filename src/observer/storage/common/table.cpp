@@ -599,6 +599,11 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   return rc;
 }
 
+RC Table::create_multi_index(Trx *trx, const char *index_name, const char **attribute_names, size_t attribute_count) {
+
+}
+
+
 void record_reader_table(const char *data, void *context) {
     TupleRecordConverter *converter = (TupleRecordConverter *)context;
     converter->add_record(data);

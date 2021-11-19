@@ -73,6 +73,8 @@ public:
 
     RC create_index(Trx *trx, const char *index_name, const char *attribute_name, bool unique_attr);
 
+    RC create_multi_index(Trx *trx, const char *index_name, const char **attribute_names, size_t attribute_count);
+
 public:
     const char *name() const;
 

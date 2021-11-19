@@ -106,6 +106,22 @@ public:
   RC create_index(Trx *trx, const char *dbname, const char *relation_name, const char *index_name, const char *attribute_name, bool unique_attr);
 
   /**
+   * 该函数在关系relName的属性attrName上创建名为indexName的多列索引。
+   * 函数首先检查在标记属性上是否已经存在一个索引，
+   * 如果存在，则返回一个非零的错误码。
+   * 否则，创建该索引。
+   * 创建索引的工作包括：①创建并打开索引文件；
+   * ②逐个扫描被索引的记录，并向索引文件中插入索引项；③关闭索引
+   * @param trx
+   * @param dbname
+   * @param relation_name
+   * @param index_name
+   * @param attribute_names
+   * @param attribute_count
+   * @return
+   */
+  RC create_multi_index(Trx *trx, const char *dbname, const char *relation_name, const char *index_name, const char **attribute_names, const size_t attribute_count);
+  /**
    * 该函数用来删除名为indexName的索引。
    * 函数首先检查索引是否存在，如果不存在，则返回一个非零的错误码。否则，销毁该索引
    * @param index_name 

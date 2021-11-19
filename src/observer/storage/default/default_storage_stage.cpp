@@ -205,7 +205,10 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
       snprintf(response, sizeof(response), "%s\n", rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");
     }
     break;
-
+      case SCF_CREATE_MULTI_INDEX: {
+          const CreateMultiIndex &create_multi_index = sql->sstr.create_multi_index;
+          rc = handler_->
+      }
   case SCF_SHOW_TABLES: {
       Db *db = handler_->find_db(current_db);
       if (nullptr == db) {
