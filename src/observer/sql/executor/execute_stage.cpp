@@ -287,7 +287,48 @@ bool is_simple_ex(RelAttr relAttr, std::vector<RelAttr> &ret) {
     }
     return is_simple;
 }
+Condition cast_condition_to_simple(Condition condition){
+        std::vector<RelAttr> lefts;
+        std::vector<RelAttr> rights;
+        bool is_simple = is_simple_ex(condition.left_attr, lefts) && is_simple_ex(condition.right_attr, rights);
+        RelAttr left_attr = lefts[0];
+        RelAttr right_attr = rights[0];
+        if (is_simple) {
+            if ((left_attr.extype == val && condition.right_attr.extype == val) || // 两边都是值
+                (left_attr.extype == id && right_attr.extype == val)) {
+                DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
+                Condition condition1;
+                condition1.comp = condition.comp;
+                if ((left_attr.extype == val && condition.right_attr.extype == val)) {
+                    condition1.right_is_attr = 0;
+                    condition1.left_is_attr = 0;
+                    condition1.right_value = right_attr.value;
+                    condition1.left_value = left_attr.value;
 
+                }
+                if ((left_attr.extype == id && right_attr.extype == val)) {
+                    condition1.right_is_attr = 0;
+                    condition1.left_is_attr = 1;
+                    condition1.right_value = right_attr.value;
+                    condition1.left_attr = left_attr;
+                }
+                if ((left_attr.extype == val && right_attr.extype == id)) {
+                    condition1.right_is_attr = 1;
+                    condition1.left_is_attr = 0;
+                    condition1.left_value = left_attr.value;
+                    condition1.right_attr = right_attr;
+                }
+                if (left_attr.extype == id && right_attr.extype == id) {
+                    condition1.right_is_attr = 1;
+                    condition1.left_is_attr = 1;
+                    condition1.left_attr = left_attr;
+                    condition1.right_attr = right_attr;
+                }
+                return condition1;
+            }
+        }
+
+}
 /**
  * 创建输出模式并进行校验,构造每个表的选择属性,schemas i是realtions i的投影模式,并构造flitet
  * @param selects
