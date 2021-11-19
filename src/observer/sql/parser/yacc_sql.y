@@ -975,7 +975,7 @@ condition:
 			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 0, NULL, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
-	| LBRACE subQuery RBRACE comOp ID // x > (SELECT y FROM b)
+	| LBRACE subQuery RBRACE comOp ID // (SELECT y FROM b) > x
 		{
 			// 将子查询视作一个抽象的、惰性求值的值
 			// 把子SQL语句包装成一个Unevaluated对象，数据库引擎按需求值
@@ -999,7 +999,7 @@ condition:
 			condition_init(&condition, CONTEXT->comp, 0, NULL, &rval, 1, &left_attr, NULL);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
-	| LBRACE subQuery RBRACE comOp ID DOT ID // t.x > (SELECT y FROM b)
+	| LBRACE subQuery RBRACE comOp ID DOT ID // (SELECT y FROM b) > t.x
 		{
 			// 将子查询视作一个抽象的、惰性求值的值
 			// 把子SQL语句包装成一个Unevaluated对象，数据库引擎按需求值
