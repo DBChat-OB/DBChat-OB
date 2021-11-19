@@ -8,10 +8,11 @@ struct ParserContext;
 extern int atoi();
 extern double atof();
 char * position = "";
-#define LEX_DEBUG 1
+#define YYDEBUG 1
 #if YYDEBUG > 0
 #define debug_printf  printf
-#elifdef LEX_DEBUG
+#endif
+#ifdef YYDEBUG
 #define debug_printf  printf
 #else
 #define debug_printf(...)
@@ -101,6 +102,9 @@ QUOTE            [\'\"]
 "<"                                         RETURN_TOKEN(LT);
 ">="                                        RETURN_TOKEN(GE);
 ">"                                         RETURN_TOKEN(GT);
+"\+"                                        RETURN_TOKEN(ADD);
+"\-"                                        RETURN_TOKEN(SUB);
+"/"                                         RETURN_TOKEN(DIV);
 {QUOTE}[\40\42\47A-Za-z0-9_/\.\-]*{QUOTE}   yylval->string=strdup(yytext); RETURN_TOKEN(SSS);
 
 .                                           printf("Unknown character [%c]\n",yytext[0]); return yytext[0];

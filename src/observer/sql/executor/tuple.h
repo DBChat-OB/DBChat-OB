@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/executor/value.h"
 
 class Table;
+class Tuple;
 
 static std::vector<int> orders;
 static std::vector<int> ascs;
@@ -207,23 +208,36 @@ public:
 
     //去重加入
     void append_if_not_exists(const TupleSchema &other);
-
+    void appned(RelAttr relAttr){
+        relattrs.emplace_back(relAttr);
+    }
     const std::vector<TupleField> &fields() const {
         return fields_;
     }
-
+     std::vector<RelAttr> relfields() const {
+        return relattrs;
+    }
     const TupleField &field(int index) const {
         return fields_[index];
     }
-
+    int get_col_number()const{
+        if(fields_.size()==0){
+            return relattrs.size();
+        }
+        else{
+            return fields_.size();
+        }
+    }
     int index_of_field(const char *table_name, const char *field_name) const;
-
+    int index_of_rel(const char *table_name, const char *field_name) const;
     void clear() {
         fields_.clear();
     }
 
     void print(std::ostream &os) const;
-
+    RelAttr* getRel(int index){
+        return &relattrs.at(index);
+    }
     void print_with_table(std::ostream &os) const;
 
 public:
@@ -232,6 +246,8 @@ public:
 private:
     std::vector<TupleField> fields_;
     int field_num{0};
+    std::vector<RelAttr> relattrs;//适当根据这个设置fields
+
 };
 
 //简单的tuple集合
@@ -315,5 +331,7 @@ private:
     Table *table_;
     TupleSet &tuple_set_;
 };
-
+bool do_filter(Tuple **tuples, struct filter_map *filters, int num);
+double getvalue(Tuple* tuple,TupleSchema* schema,RelAttr &attr,int *success,std::shared_ptr<TupleValue>& tupleValue);
+bool do_filters(Tuple tuple,std::vector<Condition> conditions,TupleSchema schema);
 #endif //__OBSERVER_SQL_EXECUTOR_TUPLE_H_
