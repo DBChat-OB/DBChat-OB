@@ -28,6 +28,7 @@ typedef struct ParserContext {
   Condition conditions[MAX_NUM];
   CompOp comp;
   char id[MAX_NUM];
+  CreateMultiIndex *multi_index;
 } ParserContext;
 
 // 在解析子查询时，存储父查询信息的临时空间
@@ -210,6 +211,7 @@ command:
 	| ATT
 	| groups
 	| group_list
+	| create_multi_index
     ;
 
 exit:			
@@ -278,6 +280,21 @@ create_index:		/*create index 语句的语法解析树*/
                         create_index_init(&CONTEXT->ssql->sstr.create_index, $4, $6, $8, true);
 		}
     ;
+create_multi_index: /*建立多列索引的语法解析树*/
+	CREATE INDEX ID {
+	CONTEXT->multi_index->index_name = strdup($3);
+	} ON ID LBRACE ID INDEX_ID_LIST RBRACE
+		{
+
+		}
+INDEX_ID_LIST:
+	COMMA ID {
+
+	}
+	|COMMA ID INDEX_ID_LIST {
+
+	}
+
 
 drop_index:			/*drop index 语句的语法解析树*/
     DROP INDEX ID

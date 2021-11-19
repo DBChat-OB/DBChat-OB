@@ -256,6 +256,18 @@ void create_table_destroy(CreateTable *create_table) {
   create_table->relation_name = nullptr;
 }
 
+void create_multi_index_init_name(CreateMultiIndex *create_multi_index, const char *index_name, const char *relation_name){
+
+};
+
+void create_multi_index_append_attribute_name(CreateMultiIndex *create_multi_index, const char *attribute_name){
+
+};
+
+void create_multi_index_destroy(CreateMultiIndex *create_multi_index){
+
+};
+
 void drop_table_init(DropTable *drop_table, const char *relation_name) {
   drop_table->relation_name = strdup(relation_name);
 }
