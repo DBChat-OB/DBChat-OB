@@ -322,6 +322,9 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
         }
         for (int j = 0; j < rels.size(); j++) {
             RelAttr &attr = rels[j];
+            if(attr.extype==val){
+                continue;
+            }
             if (nullptr == attr.relation_name) {
                 if (0 == strcmp("*", attr.attribute_name)) {
                     // 列出所有查询表的所有字段 是不是也要反着来
