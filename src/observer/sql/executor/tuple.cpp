@@ -118,8 +118,13 @@ void Tuple::add(float value, bool null_attr) {
     add(new FloatValue(value,null_attr));
 }
 
-void Tuple::add(const char *s, int len, bool null_attr) {
-    add(new StringValue(s, len, null_attr));
+void Tuple::add(const char *s, int len, bool null_attr, bool is_text = false) {
+    if (!is_text) {
+        // CHARS
+        add(new StringValue(s, len, null_attr));
+    } else {
+        add(new TextValue(s, len, null_attr));
+    }
 }
 
 void Tuple::add(unsigned int value, bool null_attr) {
@@ -136,6 +141,9 @@ Tuple::Tuple(AttrType type_, void *data) {
             case CHARS:
                 add((char*)data, (int)strlen((char*)data), false);
                 break;
+            case TEXTS:
+                add((char*)data, (int)strlen((char*)data), false, true);
+                break;
             case INTS:
                 add(*(int*)data, false);
                 break;
@@ -148,6 +156,7 @@ Tuple::Tuple(AttrType type_, void *data) {
             case UNDEFINED:
             case UNEVALUATED:
             case ATTR_TABLE:
+            default:
                 LOG_ERROR("Programming error: Trying to add value of unsupported type into Tuple.");
                 assert(0);
                 break;
@@ -449,7 +458,14 @@ bool TupleSet::flatten(Value &ret) const {
     if (t.size() != 1)  return false;
     auto &v = t.get(0);
     ret.type = v.get_type();
-    v.get_data(ret.data);
+
+    // 把value的data复制一份，使得其不是const的
+    auto sz = v.data_length();
+    void *buf = malloc(sz);
+    const void *src;
+    v.get_data(src);
+    memcpy(buf, src, sz);
+    ret.data = buf;
     return true;
 }
 
@@ -491,6 +507,18 @@ void TupleRecordConverter::add_record(const char *record) {
             case DATE: {
                 unsigned int value = *(unsigned int *) (record + field_meta->offset());
                 tuple.add(value,null_attr);
+            }
+                break;
+            case TEXTS: {
+                // 从堆中获取实际值
+                uint32_t ref = *(uint32_t*)(record + field_meta->offset());
+                if (!null_attr) {
+                    auto s = table_->heap_manager->get(ref);
+                    tuple.add(s, (int)strlen(s), null_attr, true);
+                    free((void*)s);
+                } else {
+                    tuple.add("\0", 0, null_attr, true);
+                }
             }
                 break;
             default: {

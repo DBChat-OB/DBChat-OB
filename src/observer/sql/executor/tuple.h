@@ -66,7 +66,7 @@ public:
 
     void add(float value, bool null_attr);
 
-    void add(const char *s, int len, bool null_attr);
+    void add(const char *s, int len, bool null_attr, bool is_text);
 
     void add(unsigned int value, bool null_attr);
 
@@ -310,9 +310,9 @@ public:
 
 //根据meta将record解析为tuple,并加入集合
     void add_record(const char *record);
+    Table *table_;
 
 private:
-    Table *table_;
     TupleSet &tuple_set_;
 };
 

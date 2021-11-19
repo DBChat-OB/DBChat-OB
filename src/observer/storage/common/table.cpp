@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <limits.h>
 #include <string.h>
+#include <string>
 #include <algorithm>
 #include <sql/executor/tuple.h>
 
@@ -34,7 +35,9 @@ See the Mulan PSL v2 for more details. */
 Table::Table() :
     data_buffer_pool_(nullptr),
     file_id_(-1),
-    record_handler_(nullptr) {
+    record_handler_(nullptr),
+    is_opened(false),
+    heap_manager(nullptr) {
 }
 
 Table::~Table() {
@@ -44,6 +47,8 @@ Table::~Table() {
   if (data_buffer_pool_ != nullptr && file_id_ >= 0) {
     data_buffer_pool_->close_file(file_id_);
     data_buffer_pool_ = nullptr;
+    delete this->heap_manager;
+    this->heap_manager = nullptr;
   }
 
   LOG_INFO("Table has been closed: %s", name());
@@ -155,7 +160,28 @@ RC Table::open(const char *meta_file, const char *base_dir) {
     }
     indexes_.push_back(index);
   }
+
+  // 加载TEXT堆
+  rc = open_heap_manager();
+
+  is_opened = (rc == RC::SUCCESS);
   return rc;
+}
+
+RC Table::open_heap_manager() {
+    RC rc;
+    std::string heap_file_path(base_dir_);
+    heap_file_path.append("/");
+    heap_file_path.append(name());
+    heap_file_path.append(".heap");
+    this->heap_manager = new HeapManager(heap_file_path.c_str());
+    if ((rc = this->heap_manager->init()) != RC::SUCCESS) {
+        LOG_ERROR("Failed to initialize heap manager. table=%s, file=%s, rc=%d:%s.",
+                  name(), heap_file_path.c_str(), rc, strrc(rc));
+        return rc;
+    }
+    LOG_ERROR("Heap manager is opened. table=%s", name());
+    return rc;
 }
 
 RC Table::commit_insert(Trx *trx, const RID &rid) {
@@ -277,6 +303,10 @@ RC Table::make_record(int value_num, const Value *values, char * &record_out) {
         if(field->type()==DATE&&value.type==CHARS){
             continue;
         }
+        if (field->type() == TEXTS && value.type == CHARS) {
+            // 超长字符串在SQL解析时和普通字符串的类型是一样的，只不过截断长度不一样、存储方式不一样（需要一个间接寻址）
+            continue;
+        }
       LOG_ERROR("Invalid value type. field name=%s, type=%d, but given=%d",
         field->name(), field->type(), value.type);
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -310,7 +340,19 @@ RC Table::make_record(int value_num, const Value *values, char * &record_out) {
         }
         continue;
     }
-    memcpy(record + field->offset(), value.data, field->len());
+    if (field->type() == TEXTS) {
+        if (value.type != CHARS)  return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        // 对于TEXT类型，实际值存放在堆里，数据库里只存储一个4字节的堆内偏移
+        assert(heap_manager != nullptr);
+        auto heap_offset = heap_manager->put((char*)value.data);
+        if (heap_offset == 0) {
+            // error
+            return RC::IOERR;
+        }
+        *(uint32_t*)(record + field->offset()) = heap_offset;
+    } else {
+        memcpy(record + field->offset(), value.data, field->len());
+    }
   }
 
   record_out = record;
@@ -675,7 +717,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
             }
             else{
                 //不是要更改的列，直接将原来的值复制
-                void * ptr;
+                const void * ptr;
                 (tuple_set.tuples().at(i)).get_pointer(j).get()->get_data(ptr);
                 memcpy(record_char + field->offset(), ptr, field->len());
                 if((tuple_set.tuples().at(i)).get_pointer(j)->is_null()) {
@@ -888,6 +930,12 @@ RC Table::sync() {
       return rc;
     }
   }
+
+  if (!heap_manager->flush()) {
+      LOG_ERROR("Failed to flush TEXT heap. table=%s.", name());
+      return RC::BUFFERPOOL_FILEERR;
+  }
+
   LOG_INFO("Sync table over. table=%s", name());
   return rc;
 }

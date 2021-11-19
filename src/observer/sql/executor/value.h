@@ -40,7 +40,9 @@ public:
 
     virtual float getFValue() const = 0;
 
-    virtual void get_data(void *&ptr) const = 0;
+    virtual void get_data(const void *&ptr) const = 0;
+
+    virtual size_t data_length() const = 0;
 
     virtual AttrType get_type() const = 0;
 
@@ -95,8 +97,12 @@ public:
 
     }
 
-    void get_data(void *&ptr) const override {
+    void get_data(const void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    size_t data_length() const override {
+        return 4;
     }
 
     AttrType get_type() const override {
@@ -176,8 +182,12 @@ public:
         return 0;
     }
 
-    void get_data(void *&ptr) const override {
+    void get_data(const void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    size_t data_length() const override {
+        return 4;
     }
 
     AttrType get_type() const override {
@@ -238,8 +248,13 @@ public:
             return 1;
         }
     }
-    void get_data(void *&ptr) const override {
+
+    void get_data(const void *&ptr) const override {
         ptr = (void *) &value_c_str;
+    }
+
+    size_t data_length() const override {
+        return 4;
     }
 
     AttrType get_type() const override {
@@ -257,6 +272,71 @@ public:
 private:
     std::string value_;
     char value_c_str[20];
+};
+
+class TextValue : public TupleValue {
+public:
+    TextValue(const char *value, int len, bool null_attr) : value_(value, len) {
+        null_attr_ = null_attr;
+    }
+
+    explicit TextValue(const char *value) : value_(value) {
+    }
+
+    void to_string(std::ostream &os) const override {
+        if(null_attr_) {
+            os << "null";
+        }
+        else {
+            os << value_;
+        }
+    }
+
+    int getIValue() const override {
+        return -1;
+    }
+
+    float getFValue() const override {
+        return -1;
+    }
+
+    int compare(const TupleValue &other) const override {
+        if(this->is_null()||other.is_null()){
+            return 10;
+        }
+        const TextValue &string_other = (const TextValue &) other;
+        int ret = strcmp(value_.c_str(), string_other.value_.c_str());
+        if (ret == 0) {
+            return 0;
+        } else if (ret < 0) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+
+    void get_data(const void *&ptr) const override {
+        ptr = value_.c_str();
+    }
+
+    size_t data_length() const override {
+        return value_.length() + 1;
+    }
+
+    AttrType get_type() const override {
+        return AttrType::TEXTS;
+    }
+
+    void set_null(bool null_attr) {
+        null_attr_ = null_attr;
+    }
+
+    bool is_null() const override{
+        return null_attr_;
+    }
+
+private:
+    std::string value_;
 };
 
 class DateValue : public TupleValue {
@@ -307,8 +387,12 @@ public:
         }
     }
 
-    void get_data(void *&ptr) const override {
+    void get_data(const void *&ptr) const override {
         ptr = (void *) &value_;
+    }
+
+    size_t data_length() const override {
+        return 4;
     }
 
     AttrType get_type() const override {

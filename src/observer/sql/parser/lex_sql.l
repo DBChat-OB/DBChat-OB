@@ -8,15 +8,12 @@ struct ParserContext;
 extern int atoi();
 extern double atof();
 char * position = "";
-#define LEX_DEBUG 1
-#if YYDEBUG > 0
-#define debug_printf  printf
-#elifdef LEX_DEBUG
-#define debug_printf  printf
-#else
+#define YYDEBUG 1 // 可以在这里定义 YYDEBUG宏 
+#ifdef YYDEBUG 
+#define debug_printf  printf   // 也可以调整lex_sql.l代码，在定义YYDEBUG宏的时候，做更多事情 
+#else 
 #define debug_printf(...)
 #endif // YYDEBUG
-
 #define RETURN_TOKEN(token) debug_printf("%s\n",#token);return token
 %}
 
@@ -71,6 +68,7 @@ QUOTE            [\'\"]
 [Ii][Nn][Tt]                                RETURN_TOKEN(INT_T);
 [Cc][Hh][Aa][Rr]                            RETURN_TOKEN(STRING_T);
 [Ff][Ll][Oo][Aa][Tt]                        RETURN_TOKEN(FLOAT_T);
+[Tt][Ee][Xx][Tt]                            RETURN_TOKEN(TEXT_T);
 [Ll][Oo][Aa][Dd]                            RETURN_TOKEN(LOAD);
 [Dd][Aa][Tt][Aa]                            RETURN_TOKEN(DATA);
 [Dd][Aa][Tt][Ee]                            RETURN_TOKEN(DATE_T);
