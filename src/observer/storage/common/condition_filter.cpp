@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <stddef.h>
 #include <assert.h>
 #include <cmath>
+#include <sql/executor/execute_stage.h>
 #include "unevaluated.h"
 #include "condition_filter.h"
 #include "record_manager.h"
@@ -486,7 +487,8 @@ RC CompositeConditionFilter::init(Table &table, const Condition *conditions, int
     ConditionFilter **condition_filters = new ConditionFilter *[condition_num];
     for (int i = 0; i < condition_num; i++) {
         DefaultConditionFilter *default_condition_filter = new DefaultConditionFilter();
-        rc = default_condition_filter->init(table, conditions[i], trx);
+        Condition condition=cast_condition_to_simple(conditions[i]);
+        rc = default_condition_filter->init(table, condition, trx);
         if (rc != RC::SUCCESS) {
             delete default_condition_filter;
             for (int j = i - 1; j >= 0; j--) {
