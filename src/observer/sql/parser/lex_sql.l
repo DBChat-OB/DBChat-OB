@@ -8,12 +8,7 @@ struct ParserContext;
 extern int atoi();
 extern double atof();
 char * position = "";
-// #define YYDEBUG 1 // 可以在这里定义 YYDEBUG宏
-#ifdef YYDEBUG 
-#define debug_printf  printf   // 也可以调整lex_sql.l代码，在定义YYDEBUG宏的时候，做更多事情 
-#else 
 #define debug_printf(...)
-#endif // YYDEBUG
 #define RETURN_TOKEN(token) debug_printf("%s\n",#token);return token
 %}
 

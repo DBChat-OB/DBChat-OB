@@ -51,6 +51,7 @@ uint32_t HeapManager::put(const char *value) {
     }
     fputc('\0', fp);
     fflush(fp);
+    LOG_ERROR("heap put: %u -> '%s'.\n", offset, value);
     return offset;
 }
 
@@ -58,10 +59,11 @@ const char *HeapManager::get(uint32_t pos) {
     fseek(fp, pos, SEEK_SET);
     char *buf = (char *) malloc(4096 + 4);
     if (fgets(buf, 4096, fp) == nullptr) {
-        LOG_ERROR("fgets failed. errno=%d.\n", errno);
-        strcpy(buf, "<heap error>");
+        LOG_ERROR("fgets failed. pos=%u, errno=%d.\n", pos, errno);
+        strcpy(buf, "<error>");
     }
     buf[4096] = '\0';
+    LOG_ERROR("heap get: %u -> '%s'.\n", pos, buf);
     return buf;
 }
 

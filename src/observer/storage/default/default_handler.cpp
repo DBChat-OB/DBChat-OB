@@ -195,8 +195,11 @@ RC DefaultHandler::update_record(Trx *trx, const char *dbname, const char *relat
   if (nullptr == table) {
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-
-  return table->update_record(trx, attribute_name, value, condition_num, conditions, updated_count);
+    RC err;
+  if ((err = table->update_record(trx, attribute_name, value, condition_num, conditions, updated_count)) != RC::SUCCESS) {
+      LOG_ERROR("Update failed. %d:%s", err, strrc(err));
+  }
+  return err;
 }
 
 Db *DefaultHandler::find_db(const char *dbname) const {

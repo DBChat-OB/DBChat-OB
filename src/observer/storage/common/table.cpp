@@ -608,7 +608,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     RC rc = RC::SUCCESS;
     //初始化可能更新的日期
     time_t time_value;
-    bool time_flag = false;
+    bool is_date = false, is_text = false; // 是否发生date的、text的隐式类型转换
     unsigned int time_int = 0;
     //初始化表的schema
     TupleSchema tuple_schema;
@@ -625,26 +625,29 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     }
     //判断更新的数据类型和对应列的数据类型是否一致
     if (tuple_field.type()!=value->type) {
-        if (!((value->type==CHARS&&tuple_field.type()==DATE)||value->null_attr)){
-            //如果不是用chars更新date就出错,或者新的value是null
+        // 判断是否更新为空，如果不是的话，判断能否进行隐式类型转换，如果都不能，则该更新非法，拒绝更新
+        if (value->null_attr) {
+            // 更新为空，这里暂时不处理，后面处理
+        } else if (value->type == CHARS && tuple_field.type() == DATE) {
+            //确实是用chars更新date
+            is_date = true;
+            //chars更新date要看日期是否合法。
+            if(mytime::chars_to_date((char*)value->data,time_value)){
+                //合法就保存time值
+                time_int = time_value;
+            }
+            else{
+                //不合法
+                rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
+                return rc;
+            }
+        } else if (value->type == CHARS && tuple_field.type() == TEXTS) {
+            // 字符串可以被隐式转换为超长字段
+            is_text = true;
+        } else {
+            // 非法更新，类型不匹配
             rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
             return rc;
-        }
-        else{
-            if (!value->null_attr) {
-            //确实是用chars更新date
-                time_flag = true;
-                //chars更新date要看日期是否合法。
-                if(mytime::chars_to_date((char*)value->data,time_value)){
-                    //合法就保存time值
-                    time_int = time_value;
-                }
-                else{
-                    //不合法
-                    rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;
-                    return rc;
-                }
-            }
         }
     }
     //为每个比较的condition构建一个比较器filter
@@ -672,6 +675,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     CompositeConditionFilter condition_filter;
     condition_filter.init((const ConditionFilter **)condition_filters.data(),condition_filters.size());
     //初始化过滤出来的tupleSet
+    // 读取出所有要更新的行
     TupleSet tuple_set;
     tuple_set.clear();
     tuple_set.set_schema(tuple_schema);
@@ -679,7 +683,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     rc = scan_record(trx, &condition_filter, -1, (void *)&converter, record_reader_table);
     if (rc!=RC::SUCCESS)
         return rc;
-    //删除原来表中的所有满足条件的行
+    // 删除原来表中的所有要更新的行
     int delete_num;
     rc = delete_record(nullptr,&condition_filter,&delete_num);
     if (rc!=RC::SUCCESS)
@@ -706,7 +710,10 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
                 }
                 else {
                     memcpy(record_char + field->offset()-4, &null_attr_false, 4);
-                    if(time_flag) {
+                    if (is_text) {
+                        uint32_t text_offset = heap_manager->put((char*)value->data);
+                        memcpy(record_char + field->offset(), &text_offset, field->len());
+                    } else if (is_date) {
                         memcpy(record_char + field->offset(), &time_int, field->len());
                     }
                     else {
@@ -717,9 +724,16 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
             }
             else{
                 //不是要更改的列，直接将原来的值复制
-                const void * ptr;
-                (tuple_set.tuples().at(i)).get_pointer(j).get()->get_data(ptr);
-                memcpy(record_char + field->offset(), ptr, field->len());
+                auto ptr_tuple = (tuple_set.tuples().at(i)).get_pointer(j);
+                const void * ptr_data;
+                uint32_t text_offset;
+                ptr_tuple->get_data(ptr_data);
+                if (ptr_tuple->get_type() == AttrType::TEXTS) {
+                    // 如果是TEXT类型，需要再写入堆内，因为当前UPDATE的实现是有复制语义的（删除了再创建新的），旧的值已经被删掉了
+                    text_offset = heap_manager->put((char*)ptr_data);
+                    ptr_data = &text_offset;
+                }
+                memcpy(record_char + field->offset(), ptr_data, field->len());
                 if((tuple_set.tuples().at(i)).get_pointer(j)->is_null()) {
                     memcpy(record_char + field->offset()-4, &null_attr_true, 4);
                 }
