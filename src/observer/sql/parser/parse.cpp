@@ -256,18 +256,6 @@ void create_table_destroy(CreateTable *create_table) {
   create_table->relation_name = nullptr;
 }
 
-void create_multi_index_init_name(CreateMultiIndex *create_multi_index, const char *index_name, const char *relation_name){
-
-};
-
-void create_multi_index_append_attribute_name(CreateMultiIndex *create_multi_index, const char *attribute_name){
-
-};
-
-void create_multi_index_destroy(CreateMultiIndex *create_multi_index){
-
-};
-
 void drop_table_init(DropTable *drop_table, const char *relation_name) {
   drop_table->relation_name = strdup(relation_name);
 }
@@ -276,21 +264,28 @@ void drop_table_destroy(DropTable *drop_table) {
   drop_table->relation_name = nullptr;
 }
 
-void create_index_init(CreateIndex *create_index, const char *index_name, 
+void create_index_init(CreateIndex *obj, const char *index_name,
                        const char *relation_name, const char *attr_name, bool unique_attr) {
-  create_index->index_name = strdup(index_name);
-  create_index->relation_name = strdup(relation_name);
-  create_index->attribute_name = strdup(attr_name);
-  create_index->unique_attr = unique_attr;
+    obj->index_name = strdup(index_name);
+    obj->relation_name = strdup(relation_name);
+    obj->attribute_names[0] = strdup(attr_name);
+    obj->attribute_count = 1; // 当前已经读入了一个属性
+    obj->unique_attr = unique_attr;
 }
-void create_index_destroy(CreateIndex *create_index) {
-  free(create_index->index_name);
-  free(create_index->relation_name);
-  free(create_index->attribute_name);
-
-  create_index->index_name = nullptr;
-  create_index->relation_name = nullptr;
-  create_index->attribute_name = nullptr;
+void create_index_add_attribute(CreateIndex *obj, const char *attr_name) {
+    obj->attribute_names[obj->attribute_count++] = strdup(attr_name);
+}
+void create_index_destroy(CreateIndex *obj) {
+    free(obj->index_name);
+    free(obj->relation_name);
+    for (size_t i = 0; i < obj->attribute_count; ++i) {
+        auto **mem = &obj->attribute_names[i];
+        free(*mem);
+        *mem = nullptr;
+    }
+    obj->index_name = nullptr;
+    obj->relation_name = nullptr;
+    obj->attribute_count = 0;
 }
 
 void drop_index_init(DropIndex *drop_index, const char *index_name) {
