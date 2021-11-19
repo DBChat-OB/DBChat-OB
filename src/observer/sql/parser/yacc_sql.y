@@ -150,7 +150,6 @@ ParserContext *get_context(yyscan_t scanner)
 	ADD
 	SUB
 	DIV
-	    GROUP
         NULLABLE
         NULL_K
         NOT
@@ -725,9 +724,7 @@ condition:
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
-
 			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
-
 			Condition condition;
 			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 0, NULL, right_value);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
