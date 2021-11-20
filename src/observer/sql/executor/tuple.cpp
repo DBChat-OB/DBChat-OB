@@ -81,7 +81,7 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
         }
         case F:{
             value= getvalue(tuple,schema,*attr.first,success,tupleValue);
-            if(*success!=-1){
+            if(*success==-1){
                 return 0;
             }
             *success=1;
