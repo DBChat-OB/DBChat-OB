@@ -35,6 +35,8 @@ See the Mulan PSL v2 for more details. */
 #include "event/storage_event.h"
 #include "session/session.h"
 
+extern std::vector<std::string> command_list;
+
 using namespace common;
 
 const std::string DefaultStorageStage::QUERY_METRIC_TAG = "DefaultStorageStage.query";
@@ -272,7 +274,22 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
     }
   }
 
-  session_event->set_response(response);
+  if (rc != RC::SUCCESS) {
+      std::string errmsg("FAILURE\n");
+      char tmp[16];
+      sprintf(tmp, "%zu", command_list.size());
+      errmsg.append("----\n");
+      errmsg.append("Total: ").append(tmp).append("\n");
+      for (const auto &item : command_list) {
+          errmsg.append(item); // .append("\n");
+          if (item.back() != '\n') errmsg.append("\n");
+      }
+      errmsg.append("----\n");
+      session_event->set_response(errmsg.c_str());
+  } else {
+      session_event->set_response(response);
+  }
+
   event->done_immediate();
 
   LOG_TRACE("Exit\n");
