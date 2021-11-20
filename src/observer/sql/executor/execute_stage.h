@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "rc.h"
 #include "tuple.h"
 class SessionEvent;
-Condition cast_condition_to_simple(Condition condition);
+
 class ExecuteStage : public common::Stage {
 public:
   ~ExecuteStage();
