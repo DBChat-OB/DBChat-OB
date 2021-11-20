@@ -31,7 +31,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "storage/common/mytime.cpp"
 
-
+#include "sql//executor/execute_stage.h"
 Table::Table() :
     data_buffer_pool_(nullptr),
     file_id_(-1),
@@ -654,21 +654,56 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
     std::vector<DefaultConditionFilter *> condition_filters;
     for (int i = 0; i < condition_num; i++) {
         const Condition &condition = conditions[i];
-        if ((condition.left_is_attr == 0 && condition.right_is_attr == 0) || // 两边都是值
-            (condition.left_is_attr == 1 && condition.right_is_attr == 0) ||  // 左边是属性右边是值
-            (condition.left_is_attr == 0 && condition.right_is_attr == 1) ||  // 左边是值，右边是属性名
-            (condition.left_is_attr == 1 && condition.right_is_attr == 1) // 左右都是属性名，并且表名都符合
-                ) {
-            DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
-            rc = condition_filter->init(*this, condition, trx);
-            if (rc != RC::SUCCESS) {
-                delete condition_filter;
-                for (DefaultConditionFilter *&filter: condition_filters) {
-                    delete filter;
+        std::vector<RelAttr> lefts;
+        std::vector<RelAttr> rights;
+        bool is_simple = is_simple_ex(condition.left_attr, lefts) && is_simple_ex(condition.right_attr, rights);
+        if (is_simple) {
+            RelAttr left_attr = lefts[0];
+            RelAttr right_attr = rights[0];
+            if ((left_attr.extype == val && condition.right_attr.extype == val) || // 两边都是值
+            (left_attr.extype == id && right_attr.extype == val)||  // 左边是属性右边是值
+            (left_attr.extype == val && right_attr.extype == id)  ||  // 左边是值，右边是属性名
+            (left_attr.extype == id && right_attr.extype == id )
+            // 左右都是属性名，并且表名都符合
+            ) {
+                DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
+                Condition condition1;
+                condition1.comp = condition.comp;
+                if ((left_attr.extype == val && condition.right_attr.extype == val)) {
+                    condition1.right_is_attr = 0;
+                    condition1.left_is_attr = 0;
+                    condition1.right_value = right_attr.value;
+                    condition1.left_value = left_attr.value;
+
                 }
-                return rc;
+                if ((left_attr.extype == id && right_attr.extype == val)) {
+                    condition1.right_is_attr = 0;
+                    condition1.left_is_attr = 1;
+                    condition1.right_value = right_attr.value;
+                    condition1.left_attr = left_attr;
+                }
+                if ((left_attr.extype == val && right_attr.extype == id)) {
+                    condition1.right_is_attr = 1;
+                    condition1.left_is_attr = 0;
+                    condition1.left_value = left_attr.value;
+                    condition1.right_attr = right_attr;
+                }
+                if (left_attr.extype == id && right_attr.extype == id) {
+                    condition1.right_is_attr = 1;
+                    condition1.left_is_attr = 1;
+                    condition1.left_attr = left_attr;
+                    condition1.right_attr = right_attr;
+                }
+                RC rc = condition_filter->init(*this, condition1, trx);
+                if (rc != RC::SUCCESS) {
+                    delete condition_filter;
+                    for (DefaultConditionFilter *&filter: condition_filters) {
+                        delete filter;
+                    }
+                    return rc;
+                }
+                condition_filters.push_back(condition_filter);
             }
-            condition_filters.push_back(condition_filter);
         }
     }
     //将多个比较器组合成为多值过滤比较器

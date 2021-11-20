@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "tuple.h"
 class SessionEvent;
 Condition cast_condition_to_simple(Condition condition);
+bool is_simple_ex(RelAttr relAttr, std::vector<RelAttr> &ret);
 class ExecuteStage : public common::Stage {
 public:
   ~ExecuteStage();
