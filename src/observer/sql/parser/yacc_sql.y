@@ -648,15 +648,12 @@ F:
 	LBRACE E RBRACE{
 		f_e();
 	}
-	|
 	SUB LBRACE E RBRACE{
 			set_sub();
-	}
+        		f_e();
+        }
 	|SUB ATT{
-        		set_sub();
-        	}
-	|ATT{
-		//set_sub();
+		set_sub();
 	}
         |value{
         	Value *value = &CONTEXT->values[CONTEXT->value_length - 1];
