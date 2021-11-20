@@ -52,11 +52,13 @@ public:
   int sys_field_num() const;
 
   const IndexMeta * index(const char *name) const;
+  const MultiIndexMeta * multi_index(const char *name) const;
   const IndexMeta * find_index_by_field(const char *field) const;
   const MultiIndexMeta * find_multi_index_by_field(const char *field) const;
   const IndexMeta * index(int i) const;
+  const MultiIndexMeta * multi_index(int i) const;
   int index_num() const;
-
+  int multi_index_num() const;
   int record_size() const;
 
 public:

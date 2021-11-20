@@ -160,7 +160,22 @@ RC Table::open(const char *meta_file, const char *base_dir) {
     }
     indexes_.push_back(index);
   }
+    //加载多列索引
+    const int multi_index_num = table_meta_.multi_index_num();
+    for (int i = 0; i < multi_index_num; i++) {
+        const MultiIndexMeta *multi_index_meta = table_meta_.multi_index(i);
 
+        MultiBplusTreeIndex *multi_index = new MultiBplusTreeIndex();
+        std::string index_file = index_data_file(base_dir, name(), multi_index_meta->name());
+        rc = multi_index->open(index_file.c_str(), *multi_index_meta);
+        if (rc != RC::SUCCESS) {
+            delete multi_index;
+            LOG_ERROR("Failed to open index. table=%s, index=%s, file=%s, rc=%d:%s",
+                      name(), multi_index_meta->name(), index_file.c_str(), rc, strrc(rc));
+            return rc;
+        }
+        indexes_.push_back(multi_index);
+    }
   // 加载TEXT堆
   rc = open_heap_manager();
 
@@ -600,7 +615,85 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
 }
 
 RC Table::create_multi_index(Trx *trx, const char *index_name, const char **attribute_names, size_t attribute_count) {
+    if (index_name == nullptr || common::is_blank(index_name)) {
+        return RC::INVALID_ARGUMENT;
+    }
+    for (int i = 0;i<attribute_count;i++) {
+        if (attribute_names[i]== nullptr||common::is_blank(attribute_names[i]))
+            return RC::INVALID_ARGUMENT;
+    }
+    if (table_meta_.multi_index(index_name) != nullptr) {
+        return RC::SCHEMA_INDEX_EXIST;
+    }
+    std::vector<FieldMeta> field_metas;
+    for(int i = 0; i<attribute_count;i++) {
+        const FieldMeta *field_meta = table_meta_.field(attribute_names[i]);
+        if (!field_meta) {
+            return RC::SCHEMA_FIELD_MISSING;
+        }
+        field_metas.push_back(*field_meta);
+    }
 
+    MultiIndexMeta new_multi_index_meta;
+    RC rc = new_multi_index_meta.init(index_name, field_metas);
+    if (rc != RC::SUCCESS) {
+        return rc;
+    }
+
+    // 创建索引相关数据
+    MultiBplusTreeIndex *multi_index = new MultiBplusTreeIndex();
+    std::string index_file = index_data_file(base_dir_.c_str(), name(), index_name);
+    rc = multi_index->create(index_file.c_str(), new_multi_index_meta);
+    if (rc != RC::SUCCESS) {
+        delete multi_index;
+        LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
+        return rc;
+    }
+    // 遍历当前的所有数据，插入这个索引
+    IndexInserter index_inserter(multi_index);
+    rc = scan_record(trx, nullptr, -1, &index_inserter, insert_index_record_reader_adapter);
+    if (rc != RC::SUCCESS) {
+        // rollback
+        delete multi_index;
+        LOG_ERROR("Failed to insert index to all records. table=%s, rc=%d:%s", name(), rc, strrc(rc));
+        return rc;
+    }
+    indexes_.push_back(multi_index);
+
+    TableMeta new_table_meta(table_meta_);
+    rc = new_table_meta.add_multi_index(new_multi_index_meta);
+    if (rc != RC::SUCCESS) {
+        LOG_ERROR("Failed to add index (%s) on table (%s). error=%d:%s", index_name, name(), rc, strrc(rc));
+        return rc;
+    }
+    // 创建元数据临时文件
+    std::string tmp_file = table_meta_file(base_dir_.c_str(), name()) + ".tmp";
+    std::fstream fs;
+    fs.open(tmp_file, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+    if (!fs.is_open()) {
+        LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", tmp_file.c_str(), strerror(errno));
+        return RC::IOERR; // 创建索引中途出错，要做还原操作
+    }
+    if (new_table_meta.serialize(fs) < 0) {
+        LOG_ERROR("Failed to dump new table meta to file: %s. sys err=%d:%s", tmp_file.c_str(), errno, strerror(errno));
+        return RC::IOERR;
+    }
+    fs.close();
+
+    // 覆盖原始元数据文件
+    std::string meta_file = table_meta_file(base_dir_.c_str(), name());
+    int ret = rename(tmp_file.c_str(), meta_file.c_str());
+    if (ret != 0) {
+        LOG_ERROR("Failed to rename tmp meta file (%s) to normal meta file (%s) while creating index (%s) on table (%s). " \
+              "system error=%d:%s", tmp_file.c_str(), meta_file.c_str(), index_name, name(), errno, strerror(errno));
+        return RC::IOERR;
+    }
+
+    table_meta_.swap(new_table_meta);
+
+    LOG_INFO("add a new index (%s) on the table (%s)", index_name, name());
+
+    return rc;
 }
 
 

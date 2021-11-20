@@ -201,8 +201,13 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
   case SCF_CREATE_INDEX: {
       const CreateIndex &create_index = sql->sstr.create_index;
       // TODO：实现多列索引
-      rc = handler_->create_index(current_trx, current_db, create_index.relation_name, 
-                                  create_index.index_name, create_index.attribute_names[0], create_index.unique_attr);
+      if (create_index.attribute_count>1) {
+          rc = handler_->create_multi_index(current_trx, current_db, create_index.relation_name,
+                                      create_index.index_name, create_index.attribute_names,create_index.attribute_count);
+      }
+      else {
+          rc = handler_->create_index(current_trx, current_db, create_index.relation_name,
+                                        create_index.index_name, create_index.attribute_names[0], create_index.unique_attr);}
       snprintf(response, sizeof(response), "%s\n", rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");
     }
     break;
