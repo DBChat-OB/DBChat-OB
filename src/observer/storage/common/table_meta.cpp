@@ -102,6 +102,10 @@ RC TableMeta::add_index(const IndexMeta &index) {
   return RC::SUCCESS;
 }
 
+RC TableMeta::add_multi_index(const MultiIndexMeta &multi_index) {
+    multi_indexes_.push_back(multi_index);
+    return RC::SUCCESS;
+}
 const char *TableMeta::name() const {
   return name_.c_str();
 }
@@ -157,6 +161,17 @@ const IndexMeta * TableMeta::find_index_by_field(const char *field) const {
     }
   }
   return nullptr;
+}
+
+const MultiIndexMeta * TableMeta::find_multi_index_by_field(const char *field) const {
+    for (const MultiIndexMeta &multi_index : multi_indexes_) {
+        std::vector<FieldMeta> field_metas;
+        multi_index.fields(field_metas);
+        if (0 == strcmp(field_metas.at(0).name(), field)) {
+            return &multi_index;
+        }
+    }
+    return nullptr;
 }
 
 const IndexMeta * TableMeta::index(int i ) const {

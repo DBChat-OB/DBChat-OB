@@ -51,7 +51,8 @@ typedef enum {
 typedef enum {
     UNDEFINED, CHARS, INTS, FLOATS, DATE, TEXTS,
     UNEVALUATED, // 未被求值的一个抽象值或值表达式，如子SQL语句
-    ATTR_TABLE // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
+    ATTR_TABLE, // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
+    MULTI_INDEX_FIELD //用于在B树中表示这个key是多列复合的
 } AttrType;
 
 //属性值

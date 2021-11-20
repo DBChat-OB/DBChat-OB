@@ -869,13 +869,21 @@ RC Table::delete_entry_of_indexes(const char *record, const RID &rid, bool error
 
 Index *Table::find_index(const char *index_name) const {
   for (Index *index: indexes_) {
-    if (0 == strcmp(index->index_meta().name(), index_name)) {
+    if (!index->is_multi()&&0 == strcmp(index->index_meta().name(), index_name)) {
       return index;
     }
   }
   return nullptr;
 }
 
+MultiBplusTreeIndex * Table::find_multi_index(const MultiIndexMeta * multi_index_meta) const{
+    for (Index *index: indexes_) {
+        if (index->is_multi()&&index->multi_index_meta()==*multi_index_meta) {
+            return dynamic_cast<MultiBplusTreeIndex *>(index);
+        }
+    }
+    return nullptr;
+}
 IndexScanner *Table::find_index_for_scan(const DefaultConditionFilter &filter) {
   const ConDesc *field_cond_desc = nullptr;
   const ConDesc *value_cond_desc = nullptr;
@@ -899,12 +907,23 @@ IndexScanner *Table::find_index_for_scan(const DefaultConditionFilter &filter) {
 
   const IndexMeta *index_meta = table_meta_.find_index_by_field(field_meta->name());
   if (nullptr == index_meta) {
+      //未找到单列索引，就继续尝试找多列索引
+      const MultiIndexMeta *multi_index_meta = table_meta_.find_multi_index_by_field(field_meta->name());
+      if (nullptr!=multi_index_meta){
+          MultiBplusTreeIndex *multi_index = find_multi_index(multi_index_meta);
+          if(multi_index== nullptr)
+              return nullptr;
+              else {
+                  //成功找到多列索引
+                return multi_index->create_scanner(filter.comp_op(), (const char *)value_cond_desc->value, value_cond_desc->is_null);
+              }
+      }
     return nullptr;
   }
 
   Index *index = find_index(index_meta->name());
   if (nullptr == index) {
-    return nullptr;
+      return nullptr;
   }
 
   return index->create_scanner(filter.comp_op(), (const char *)value_cond_desc->value, value_cond_desc->is_null);

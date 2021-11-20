@@ -26,6 +26,7 @@ public:
     const char *name() const;
     void fields(std::vector<FieldMeta> &fields) const;
     void desc(std::ostream &os) const;
+    bool operator == (const MultiIndexMeta& other) const;
 
 public:
     void to_json(Json::Value &json_value) const;

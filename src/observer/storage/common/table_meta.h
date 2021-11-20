@@ -22,6 +22,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/field_meta.h"
 #include "storage/common/index_meta.h"
 #include "common/lang/serializable.h"
+#include "storage/common/multi_index_meta.h"
+
 /**
  * 包含 域元数据和索引元数据
  */
@@ -38,6 +40,8 @@ public:
 
   RC add_index(const IndexMeta &index);
 
+  RC add_multi_index(const MultiIndexMeta &multi_index);
+
 public:
   const char * name() const;
   const FieldMeta * trx_field() const;
@@ -49,6 +53,7 @@ public:
 
   const IndexMeta * index(const char *name) const;
   const IndexMeta * find_index_by_field(const char *field) const;
+  const MultiIndexMeta * find_multi_index_by_field(const char *field) const;
   const IndexMeta * index(int i) const;
   int index_num() const;
 
@@ -67,7 +72,7 @@ private:
   std::string   name_;
   std::vector<FieldMeta>  fields_; // 包含sys_fields
   std::vector<IndexMeta>  indexes_;
-
+  std::vector<MultiIndexMeta> multi_indexes_;
   int  record_size_ = 0;
 
   static std::vector<FieldMeta> sys_fields_;

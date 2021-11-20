@@ -77,3 +77,16 @@ void MultiIndexMeta::desc(std::ostream &os) const {
         os<<field.name()<<"\t";
     }
 }
+
+bool MultiIndexMeta::operator==(const MultiIndexMeta &other) const {
+    if(!strcmp(this->name_.c_str(),other.name())==0)
+        return false;
+    int other_field_count = other.fields_.size();
+    if(this->fields_.size()!=other_field_count)
+        return false;
+    for(int i = 0 ;i <other_field_count;i++) {
+        if (!strcmp(this->fields_.at(i).name(),other.fields_.at(i).name())==0)
+            return false;
+    }
+    return true;
+}

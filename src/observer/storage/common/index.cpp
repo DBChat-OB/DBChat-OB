@@ -19,3 +19,9 @@ RC Index::init(const IndexMeta &index_meta, const FieldMeta &field_meta) {
   field_meta_ = field_meta;
   return RC::SUCCESS;
 }
+
+RC Index::init(const MultiIndexMeta &multi_index_meta) {
+    multi_index_meta_ = multi_index_meta;
+    is_multi_index_meta_ = true;
+    return RC::SUCCESS;
+}
