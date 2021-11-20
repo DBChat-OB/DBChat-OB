@@ -8,17 +8,8 @@ struct ParserContext;
 extern int atoi();
 extern double atof();
 char * position = "";
-#define YYDEBUG 1
-#if YYDEBUG > 0
-#define debug_printf  printf
-#endif
-#ifdef YYDEBUG
-#define debug_printf  printf
-#else
-#define debug_printf(...)
-#endif // YYDEBUG
 
-#define RETURN_TOKEN(token) debug_printf("%s\n",#token);return token
+#define RETURN_TOKEN(token) return token
 %}
 
 /* Prevent the need for linking with -lfl */

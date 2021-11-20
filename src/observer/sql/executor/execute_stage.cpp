@@ -139,6 +139,9 @@ void out_agg_type(AggType aggType, std::ostream &ss) {
             ss << "avg";
         }
             break;
+        case Null:
+            assert(0);
+            break;
     }
 }
 
@@ -287,7 +290,49 @@ bool is_simple_ex(RelAttr relAttr, std::vector<RelAttr> &ret) {
     }
     return is_simple;
 }
+Condition cast_condition_to_simple(Condition condition) {
+    std::vector<RelAttr> lefts;
+    std::vector<RelAttr> rights;
+    bool is_simple = is_simple_ex(condition.left_attr, lefts) && is_simple_ex(condition.right_attr, rights);
+    RelAttr left_attr = lefts[0];
+    RelAttr right_attr = rights[0];
+    if (is_simple) {
+        if ((left_attr.extype == val && condition.right_attr.extype == val) || // 两边都是值
+            (left_attr.extype == id && right_attr.extype == val)) {
+            DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
+            Condition condition1;
+            condition1.comp = condition.comp;
+            if ((left_attr.extype == val && condition.right_attr.extype == val)) {
+                condition1.right_is_attr = 0;
+                condition1.left_is_attr = 0;
+                condition1.right_value = right_attr.value;
+                condition1.left_value = left_attr.value;
 
+            }
+            if ((left_attr.extype == id && right_attr.extype == val)) {
+                condition1.right_is_attr = 0;
+                condition1.left_is_attr = 1;
+                condition1.right_value = right_attr.value;
+                condition1.left_attr = left_attr;
+            }
+            if ((left_attr.extype == val && right_attr.extype == id)) {
+                condition1.right_is_attr = 1;
+                condition1.left_is_attr = 0;
+                condition1.left_value = left_attr.value;
+                condition1.right_attr = right_attr;
+            }
+            if (left_attr.extype == id && right_attr.extype == id) {
+                condition1.right_is_attr = 1;
+                condition1.left_is_attr = 1;
+                condition1.left_attr = left_attr;
+                condition1.right_attr = right_attr;
+            }
+            return condition1;
+        }
+    }
+    LOG_PANIC("Not a simple value in condition.");
+    assert(0);
+}
 /**
  * 创建输出模式并进行校验,构造每个表的选择属性,schemas i是realtions i的投影模式,并构造flitet
  * @param selects
@@ -415,9 +460,10 @@ RC create_out_schema(const char *db, Selects selects, TupleSchema &tupleSchema, 
         std::vector<RelAttr> rights;
         bool is_simple = is_simple_ex(condition.left_attr, lefts) && is_simple_ex(condition.right_attr, rights);
         //TODO 检查所有的属性都在表里面
-        RelAttr left_attr = lefts[0];
-        RelAttr right_attr = rights[0];
+
         if (is_simple) {//如果是简单表达式则判断是不是两表的比较，并进行校验
+            RelAttr left_attr = lefts[0];
+            RelAttr right_attr = rights[0];
             if (left_attr.extype == id && right_attr.extype == id &&
                 strcmp(left_attr.relation_name, right_attr.relation_name) != 0) {//表之间联系
                 //要找到对应的表位置与，属性位置
@@ -564,6 +610,7 @@ void set_table_name(RelAttr* relAttr,char *tablename){
             if(relAttr->second!= nullptr){
                 set_table_name(relAttr->second,tablename);
             }
+            break;
         }
         case F:{
             set_table_name(relAttr->first,tablename);
@@ -608,7 +655,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
 //            }
 //        }
 //    }
-    char *db = "sys";
+    const char *db = "sys";
     //构造最后的输出schema与各表查询的schema,以及构建表间的比较
     //应该构造新的filter来减少元组
     if ((rc = create_out_schema(db, selects, out_schema, schemas, t_t_conditions, filter_num)) != RC::SUCCESS) {
@@ -732,7 +779,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
             has_agg = true;
         }
     }
-    if (has_agg) {//TODO 这个地方可能在分组时出错
+    if (has_agg) { //TODO 这个地方可能在分组时出错
         //建立新的schema
         TupleSchema agg_schema;
         for (int i = 0; i < selects.attr_num; i++) {
@@ -961,9 +1008,9 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
         std::vector<RelAttr> lefts;
         std::vector<RelAttr> rights;
         bool is_simple = is_simple_ex(condition.left_attr, lefts) && is_simple_ex(condition.right_attr, rights);
-        RelAttr left_attr = lefts[0];
-        RelAttr right_attr = rights[0];
         if (is_simple) {
+            RelAttr left_attr = lefts[0];
+            RelAttr right_attr = rights[0];
             if ((left_attr.extype == val && condition.right_attr.extype == val) || // 两边都是值
                 (left_attr.extype == id && right_attr.extype == val &&
                  match_table(selects, left_attr.relation_name, table_name)) ||  // 左边是属性右边是值

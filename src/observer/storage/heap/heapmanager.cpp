@@ -51,7 +51,7 @@ uint32_t HeapManager::put(const char *value) {
     }
     fputc('\0', fp);
     fflush(fp);
-    LOG_ERROR("heap put: %u -> '%s'.\n", offset, value);
+    LOG_INFO("heap put: %u -> '%s'.\n", offset, value);
     return offset;
 }
 
@@ -63,7 +63,7 @@ const char *HeapManager::get(uint32_t pos) {
         strcpy(buf, "<error>");
     }
     buf[4096] = '\0';
-    LOG_ERROR("heap get: %u -> '%s'.\n", pos, buf);
+    LOG_INFO("heap get: %u -> '%s'.\n", pos, buf);
     return buf;
 }
 
