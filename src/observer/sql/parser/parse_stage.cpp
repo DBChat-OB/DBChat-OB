@@ -27,8 +27,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "event/execution_plan_event.h"
 
-std::vector<std::string> command_list;
-
 using namespace common;
 
 //! Constructor
@@ -111,6 +109,7 @@ void ParseStage::callback_event(StageEvent *event, CallbackContext *context) {
   return;
 }
 
+static std::vector<std::string> command_list;
 StageEvent *ParseStage::handle_request(StageEvent *event) {
   SQLStageEvent *sql_event = static_cast<SQLStageEvent *>(event);
   const std::string &sql = sql_event->get_sql();
@@ -129,8 +128,18 @@ StageEvent *ParseStage::handle_request(StageEvent *event) {
     char response[256];
     //snprintf(response, sizeof(response), "Failed to parse sql: %s, error msg: %s\n", sql.c_str(), error);
     //sql_event->session_event()->set_response(response);
+    std::string errmsg("FAILURE\n");
+    char tmp[16];
+    sprintf(tmp, "%zu", command_list.size());
+    errmsg.append("----\n");
+    errmsg.append("Total: ").append(tmp).append("\n");
+      for (const auto &item : command_list) {
+          errmsg.append(item); // .append("\n");
+          if (item.back() != '\n') errmsg.append("\n");
+      }
+    errmsg.append("----\n");
     LOG_ERROR("SQL syntax error.");
-    sql_event->session_event()->set_response("FAILURE\n");
+    sql_event->session_event()->set_response(errmsg.c_str());
     query_destroy(result);
     return nullptr;
   }

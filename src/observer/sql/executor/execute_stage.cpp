@@ -34,8 +34,6 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/condition_filter.h"
 #include "storage/trx/trx.h"
 
-extern std::vector<std::string> command_list;
-
 using namespace common;//
 //函数声明
 RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, const char *table_name,
@@ -161,10 +159,10 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
     }
     exe_event->push_callback(cb);
 
-    RC rc = RC::SUCCESS;
     switch (sql->flag) {
         case SCF_SELECT: { // select
-            rc = do_select(current_db, sql, exe_event->sql_event()->session_event());
+            do_select(current_db, sql, exe_event->sql_event()->session_event());
+            exe_event->done_immediate();
         }
             break;
             //这是和储存相关的event
@@ -181,33 +179,38 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
             StorageEvent *storage_event = new(std::nothrow) StorageEvent(exe_event);
             if (storage_event == nullptr) {
                 LOG_ERROR("Failed to new StorageEvent");
-                break;
+                event->done_immediate();
+                return;
             }
 
             default_storage_stage_->handle_event(storage_event);
         }
-            return; // 不能exe_event->done_immediate();
+            break;
         case SCF_SYNC: {
-            rc = DefaultHandler::get_default().sync();
+            RC rc = DefaultHandler::get_default().sync();
             session_event->set_response(strrc(rc));
+            exe_event->done_immediate();
         }
             break;
         case SCF_BEGIN: {
             session_event->get_client()->session->set_trx_multi_operation_mode(true);
+            exe_event->done_immediate();
         }
             break;
         case SCF_COMMIT: {
             Trx *trx = session_event->get_client()->session->current_trx();
-            rc = trx->commit();
+            RC rc = trx->commit();
             session_event->get_client()->session->set_trx_multi_operation_mode(false);
             session_event->set_response(strrc(rc));
+            exe_event->done_immediate();
         }
             break;
         case SCF_ROLLBACK: {
             Trx *trx = session_event->get_client()->session->current_trx();
-            rc = trx->rollback();
+            RC rc = trx->rollback();
             session_event->get_client()->session->set_trx_multi_operation_mode(false);
             session_event->set_response(strrc(rc));
+            exe_event->done_immediate();
         }
             break;
         case SCF_HELP: {
@@ -220,33 +223,21 @@ void ExecuteStage::handle_request(common::StageEvent *event) {
                                    "delete from `table` [where `column`=`value`];\n"
                                    "select [ * | `columns` ] from `table`;\n";
             session_event->set_response(response);
+            exe_event->done_immediate();
         }
             break;
         case SCF_EXIT: {
             // do nothing
             const char *response = "Unsupported\n";
             session_event->set_response(response);
+            exe_event->done_immediate();
         }
             break;
         default: {
+            exe_event->done_immediate();
             LOG_ERROR("Unsupported command=%d\n", sql->flag);
         }
     }
-
-    if (rc != RC::SUCCESS) {
-        std::string errmsg("FAILURE\n");
-        char tmp[16];
-        sprintf(tmp, "%zu", command_list.size());
-        errmsg.append("----\n");
-        errmsg.append("Total: ").append(tmp).append("\n");
-        for (const auto &item : command_list) {
-            errmsg.append(item); // .append("\n");
-            if (item.back() != '\n') errmsg.append("\n");
-        }
-        errmsg.append("----\n");
-        session_event->set_response(errmsg.c_str());
-    }
-    exe_event->done_immediate();
 }
 
 void end_trx_if_need(Session *session, Trx *trx, bool all_right) {
