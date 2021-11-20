@@ -23,122 +23,12 @@ struct filter_map {
     int left_value;
     CompOp op;
 };
-/**
- * success=-1 则有值没有被找到
- * @param tuple
- * @param schema
- * @param attr
- * @param success 返回0则是简单值，返回1则是表达式值
- * @param tupleValue
- * @return
- */
-double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std::shared_ptr<TupleValue>& tupleValue){
-    int left;
-    int right;
-    int value;
-    switch (attr.extype) {
-        case E:{
-            if(attr.second== nullptr){
-                value=getvalue(tuple,schema,*attr.first,success,tupleValue);
-            } else{
-                left=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
-                    return 0;
-                }
-                right=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
-                    return 0;
-                }
-                *success=1;
-                if(attr.op==Add){
-                    value= left+right;
-                } else{
-                    value= left-right;
-                }
-            }
-            break;
-        }
-        case T:{
-            if(attr.second== nullptr){
-                value=getvalue(tuple,schema,*attr.first,success,tupleValue);
-            } else{
-                left=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
-                    return 0;
-                }
-                right=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
-                    return 0;
-                }
-                *success=1;
-                if(attr.op==Mul){
-                    value= left*right;
-                } else{
-                    value= left/right;
-                }
-            }
-            break;
-        }
-        case F:{
-            value= getvalue(tuple,schema,*attr.first,success,tupleValue);
-            if(*success!=-1){
-                return 0;
-            }
-            *success=1;
-            break;
-        }
-        case id:{
-            if(attr.num==-1){
-                *success=1;
-            } else{
-                *success=0;
-            }
-            attr.id=schema->index_of_field(attr.relation_name,attr.attribute_name)+1;
-            if(attr.id==0){
-                *success=-1;
-            }
-            if(attr.id>0){
-                TupleField field=schema->field(attr.id-1);
-                if(field.type()==INTS||field.type()==FLOATS){
-                        value=tuple->get(attr.id-1).getFValue();
-                }
-                tupleValue=tuple->get_pointer(attr.id-1);
-            }
-
-
-            break;
-        }
-        case val:{
-            if(attr.value.type==INTS){
-                value=*(int *)attr.value.data*1.0;
-            } else{
-                value=*(float *)attr.value.data;
-            }
-            *success=1;
-            break;
-        }
-    }
-    return value*attr.num;
-}
-bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* schema){
-    for(int i=0;i<conditions.size();i++){
-        int success1;
-        int success2;
-        Condition  condition=conditions[i];
-        std::shared_ptr<TupleValue> left_value;
-        std::shared_ptr<TupleValue> right_value;
+bool do_filter(Tuple **tuples, struct filter_map *filters, int num) {
+    for (int i = 0; i < num; i++) {
         int ret;
-        double left= getvalue(tuple,schema,condition.left_attr,&success1,left_value);
-        double right= getvalue(tuple,schema,condition.right_attr,&success2,right_value);
-        if(success1==-1||success2==-1){
-            continue;
-        }
-        if(success1||success2){//是表达式
-            ret=left-right;
-        } else{
-            ret=left_value->compare(*right_value);
-        }
-        CompOp op=condition.comp;
+        ret = tuples[filters[i].left_table]->get(filters[i].left_value).compare(
+                tuples[filters[i].right_table]->get(filters[i].right_value));
+        CompOp op=filters[i].op;
         switch (op) {
             case CompOp::EQUAL_TO: {
                 if (ret != 0) {
@@ -182,130 +72,6 @@ bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* sche
         }
     }
     return true;
-}
-void print_attr_with_table(RelAttr attr,std::ostream &os){
-    int value;
-    switch (attr.extype) {
-        case E:{
-            if(attr.second== nullptr){
-                print_attr_with_table(*attr.first,os);
-            } else{
-                if(attr.op==Add){
-                    print_attr_with_table(*attr.first,os);
-                    os<<"+";
-                    print_attr_with_table(*attr.second,os);
-                } else{
-                    print_attr_with_table(*attr.first,os);
-                    os<<"-";
-                    print_attr_with_table(*attr.second,os);
-                }
-            }
-            break;
-        }
-        case T:{
-            if(attr.second== nullptr){
-                print_attr_with_table(*attr.first,os);
-            } else{
-                if(attr.op==Mul){
-                    print_attr_with_table(*attr.first,os);
-                    os<<"*";
-                    print_attr_with_table(*attr.second,os);
-                } else{
-                    print_attr_with_table(*attr.first,os);
-                    os<<"/";
-                    print_attr_with_table(*attr.second,os);
-                }
-            }
-            break;
-        }
-        case F:{
-            if(attr.num==-1){
-                os<<"-";
-            }
-            os<<"(";
-            print_attr_with_table(*attr.first,os);
-            os<<")";
-            break;
-        }
-        case id:{
-            if(attr.num==-1){
-                os<<"-";
-            }
-            os<<attr.relation_name<<"."<<attr.attribute_name;
-            break;
-        }
-        case val:{
-            if(attr.value.type==INTS){
-                value=*(int *)attr.value.data*1.0;
-            } else{
-                value=*(float *)attr.value.data;
-            }
-            os<<value;
-            break;
-        }
-    }
-}
-void print_attr(RelAttr attr,std::ostream &os){
-    int value;
-    switch (attr.extype) {
-        case E:{
-            if(attr.second== nullptr){
-                print_attr(*attr.first,os);
-            } else{
-                if(attr.op==Add){
-                    print_attr(*attr.first,os);
-                    os<<"+";
-                    print_attr(*attr.second,os);
-                } else{
-                    print_attr(*attr.first,os);
-                    os<<"-";
-                    print_attr(*attr.second,os);
-                }
-            }
-            break;
-        }
-        case T:{
-            if(attr.second== nullptr){
-                print_attr(*attr.first,os);
-            } else{
-                if(attr.op==Mul){
-                    print_attr(*attr.first,os);
-                    os<<"*";
-                    print_attr(*attr.second,os);
-                } else{
-                    print_attr(*attr.first,os);
-                    os<<"/";
-                    print_attr(*attr.second,os);
-                }
-            }
-            break;
-        }
-        case F:{
-            if(attr.num==-1){
-                os<<"-";
-            }
-            os<<"(";
-            print_attr(*attr.first,os);
-            os<<")";
-            break;
-        }
-        case id:{
-            if(attr.num==-1){
-                os<<"-";
-            }
-            os<<attr.attribute_name;
-            break;
-        }
-        case val:{
-            if(attr.value.type==INTS){
-                value=*(int *)attr.value.data*1.0;
-            } else{
-                value=*(float *)attr.value.data;
-            }
-            os<<value;
-            break;
-        }
-    }
 }
 Tuple::Tuple(const Tuple &other) {
     LOG_PANIC("Copy constructor of tuple is not supported");
@@ -461,16 +227,6 @@ int TupleSchema::index_of_field(const char *table_name, const char *field_name) 
     }
     return -1;
 }
-int TupleSchema::index_of_rel(const char *table_name, const char *field_name) const {
-    const int size = relattrs.size();
-    for (int i = 0; i < size; i++) {
-        const RelAttr &relAttr = relattrs[i];
-        if (0 == strcmp(relAttr.relation_name, table_name) && 0 == strcmp(relAttr.attribute_name, field_name)) {
-            return i;
-        }
-    }
-    return -1;
-}
 void print_agg(TupleField tupleField,std::ostream &os){
     switch (tupleField.agg_type()) {
         case Min:{
@@ -492,71 +248,58 @@ void print_agg(TupleField tupleField,std::ostream &os){
     }
 }
 void TupleSchema::print_with_table(std::ostream &os) const {
-    if (get_col_number()==0) {
+    if (fields_.empty()) {
         os << "No schema";
         return;
     }
-    if(fields_.size()!=0){
-        for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
-             iter != end; ++iter) {
-            if((*iter).agg_type()==Null){
-                os << iter->table_name() << ".";
-                os << iter->field_name() << " | ";
-            } else{
-                print_agg(*iter,os);
-                os << iter->table_name() << ".";
-                os << iter->field_name() <<")"<< " | ";
-            }
-        }
-        if(fields_.back().agg_type()==Null){
-            os << fields_.back().table_name() << ".";
-            os << fields_.back().field_name() << std::endl;
+    for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
+         iter != end; ++iter) {
+        if((*iter).agg_type()==Null){
+            os << iter->table_name() << ".";
+            os << iter->field_name() << " | ";
         } else{
-            print_agg(fields_.back(),os);
-            os << fields_.back().table_name() << ".";
-            os << fields_.back().field_name() <<")"<< std::endl;
+            print_agg(*iter,os);
+            os << iter->table_name() << ".";
+            os << iter->field_name() <<")"<< " | ";
         }
+    }
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() << std::endl;
     } else{
-        for(int i=0;i<relattrs.size()-1;i++){
-            print_attr_with_table(relattrs[i],os);
-            os<<" | ";
-        }
-        print_attr_with_table(relattrs[relattrs.size()-1],os);
-        os<<std::endl;
+        print_agg(fields_.back(),os);
+        os << fields_.back().table_name() << ".";
+        os << fields_.back().field_name() <<")"<< std::endl;
     }
 
 }
 
 void TupleSchema::print(std::ostream &os) const {
-    if (get_col_number()==0) {
+    if (fields_.empty()) {
         os << "No schema";
         return;
     }
-    if(!fields_.empty()){
-        for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
-             iter != end; ++iter) {
-            if((*iter).agg_type()==Null){
-                os << iter->field_name() << " | ";
-            } else{
-                print_agg(*iter,os);
-                os << iter->field_name() <<")"<< " | ";
-            }
-        }
-        if(fields_.back().agg_type()==Null){
-            os << fields_.back().field_name() << std::endl;
-        } else{
-            print_agg(fields_.back(),os);
-            os << fields_.back().field_name()<<")" << std::endl;
-        }
-    } else{
-        for(int i=0;i<relattrs.size()-1;i++){
-            print_attr(relattrs[i],os);
-            os<<" | ";
-        }
-        print_attr(relattrs[relattrs.size()-1],os);
-        os<<std::endl;
-    }
 
+    // 判断有多张表还是只有一张表
+    std::set<std::string> table_names;
+    for (const auto &field: fields_) {
+        table_names.insert(field.table_name());
+    }
+    for (std::vector<TupleField>::const_iterator iter = fields_.begin(), end = --fields_.end();
+         iter != end; ++iter) {
+        if((*iter).agg_type()==Null){
+            os << iter->field_name() << " | ";
+        } else{
+            print_agg(*iter,os);
+            os << iter->field_name() <<")"<< " | ";
+        }
+    }
+    if(fields_.back().agg_type()==Null){
+        os << fields_.back().field_name() << std::endl;
+    } else{
+        print_agg(fields_.back(),os);
+        os << fields_.back().field_name()<<")" << std::endl;
+    }
 }
 
 
@@ -590,20 +333,44 @@ void TupleSet::join(TupleSet&other,TupleSet&ret,std::vector<Condition>&condition
     TupleSet *tupleSets[2];
     tupleSets[0] = this;
     tupleSets[1] = &other;
-    TupleSchema schema;
-    schema.append(this->schema_);
-    schema.append(other.schema_);
+    //先选出位于这两表的属性 建立filter映射
+    for (int i = 0; i < conditions.size(); i++) {
+        Condition condition = conditions[i];
+        int left_id;
+        int right_id;
+        if ((left_id = this->get_schema().index_of_field(condition.left_attr.relation_name,
+                                                         condition.left_attr.attribute_name)) != -1 &&
+            (right_id = other.get_schema().index_of_field(condition.right_attr.relation_name,
+                                                          condition.right_attr.attribute_name)) != -1) {
+            filters[filter_size].left_table = 0;
+            filters[filter_size].right_table = 1;
+            filters[filter_size].left_value = left_id;
+            filters[filter_size].right_value = right_id;
+            filters[filter_size].op = condition.comp;
+            filter_size++;
+        } else if ((left_id = other.get_schema().index_of_field(condition.left_attr.relation_name,
+                                                                condition.left_attr.attribute_name)) != -1 &&
+                   (right_id = this->get_schema().index_of_field(condition.right_attr.relation_name,
+                                                                 condition.right_attr.attribute_name)) != -1) {
+            filters[filter_size].left_table = 1;
+            filters[filter_size].right_table = 0;
+            filters[filter_size].left_value = left_id;
+            filters[filter_size].right_value = right_id;
+            filters[filter_size].op = condition.comp;
+            filter_size++;
+        }
+    }
     //对每个元组进行过滤
     for (int i = 0; i < this->size(); i++) {
         for (int j = 0; j < other.size(); j++) {
             Tuple *tuples[2];
             tuples[0] = this->get(i);
             tuples[1] = other.get(j);
-            Tuple tuple;
-            tuple.add(tuples[0]);
-            tuple.add(tuples[1]);
-            bool add = do_filters(&tuple,conditions,&schema);
+            bool add = do_filter(tuples, filters, filter_size);
             if(add){
+                Tuple tuple;
+                tuple.add(tuples[0]);
+                tuple.add(tuples[1]);
                 ret.add(std::move(tuple));
             }
         }
@@ -615,7 +382,7 @@ void TupleSet::clear() {
 }
 
 void TupleSet::print_with_table(std::ostream &os) const {
-    if (schema_.get_col_number()==0) {
+    if (schema_.fields().empty()) {
         LOG_WARN("Got empty schema");
         return;
     }
@@ -636,7 +403,7 @@ void TupleSet::print_with_table(std::ostream &os) const {
 }
 
 void TupleSet::print(std::ostream &os) const {
-    if (schema_.get_col_number()==0) {
+    if (schema_.fields().empty()) {
         LOG_WARN("Got empty schema");
         return;
     }

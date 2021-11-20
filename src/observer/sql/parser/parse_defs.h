@@ -24,8 +24,14 @@ See the Mulan PSL v2 for more details. */
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
 typedef enum {
-    Null, Max, Min, Count, Avg
+    Max, Min, Count, Avg,Null
 } AggType;
+//属性结构体
+typedef struct {
+    AggType aggType;
+    char *relation_name;   // relation name (may be NULL) 表名
+    char *attribute_name;  // attribute name              属性名
+} RelAttr;
 
 typedef enum {
     EQUAL_TO,     //"="     0
@@ -62,27 +68,7 @@ typedef struct s_tuple {
     size_t count; // 值的个数
     Value values[MAX_NUM];
 } LexTuple;
-//表达式类型
-typedef enum {
-    E,T,F,val,id
-}Extype;
-//运算符号类型
-typedef enum {
-    Sub, Add, Mul, Div,None
-} CalOp;
-//属性结构体
-typedef struct _relattr{
-    Extype extype;
-    CalOp op;
-    Value value;
-    int num;//正负号
-    struct _relattr* first;
-    struct _relattr* second;
-    int id;
-    AggType aggType;
-    char *relation_name;   // relation name (may be NULL) 表名
-    char *attribute_name;  // attribute name              属性名
-} RelAttr;
+
 typedef struct _Condition {
     int left_is_attr;    // TRUE if left-hand side is an attribute
     // 1时，操作符左边是属性名，0时，是属性值
@@ -238,15 +224,7 @@ typedef struct Query {
 #ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
-void e_e_t(CalOp op);
-void e_t();
-void t_t_f(CalOp op);
-void t_f();
-void f_e();
-void relation_value_append(Value *value);
-void selects_append_attribute_plus(Selects *selects);
-void relation_attr_get(RelAttr *attr);
-void condition_init_ex(Condition* condition,CompOp op);
+
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_agg_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name,AggType aggType);
 void relation_attr_destroy(RelAttr *relation_attr);
@@ -307,7 +285,7 @@ void query_init(Query *query);
 Query *query_create();  // create and init
 void query_reset(Query *query);
 void query_destroy(Query *query);  // reset and delete
-void set_sub();
+
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
