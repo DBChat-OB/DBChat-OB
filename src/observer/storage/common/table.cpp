@@ -176,11 +176,11 @@ RC Table::open_heap_manager() {
     heap_file_path.append(".heap");
     this->heap_manager = new HeapManager(heap_file_path.c_str());
     if ((rc = this->heap_manager->init()) != RC::SUCCESS) {
-        LOG_ERROR("Failed to initialize heap manager. table=%s, file=%s, rc=%d:%s.",
+        LOG_INFO("Failed to initialize heap manager. table=%s, file=%s, rc=%d:%s.",
                   name(), heap_file_path.c_str(), rc, strrc(rc));
         return rc;
     }
-    LOG_ERROR("Heap manager is opened. table=%s", name());
+    LOG_INFO("Heap manager is opened. table=%s", name());
     return rc;
 }
 

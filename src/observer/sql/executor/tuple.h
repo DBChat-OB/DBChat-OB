@@ -160,7 +160,7 @@ static bool comp(const Tuple *a, const Tuple *b) {
 class TupleField {
 public:
     TupleField(AttrType type, const char *table_name, const char *field_name,bool nullable,AggType aggType) :
-            type_(type), table_name_(table_name), field_name_(field_name),nullable_(nullable),aggType(aggType)  {
+            type_(type), aggType(aggType), table_name_(table_name),field_name_(field_name),nullable_(nullable)  {
     }
     AttrType type() const {
         return type_;

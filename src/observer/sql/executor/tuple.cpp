@@ -45,7 +45,7 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
                 if(*success==-1){
                     return 0;
                 }
-                right=getvalue(tuple,schema,*attr.first,success,tupleValue);
+                right=getvalue(tuple,schema,*attr.second,success,tupleValue);
                 if(*success==-1){
                     return 0;
                 }
@@ -66,7 +66,7 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
                 if(*success==-1){
                     return 0;
                 }
-                right=getvalue(tuple,schema,*attr.first,success,tupleValue);
+                right=getvalue(tuple,schema,*attr.second,success,tupleValue);
                 if(*success==-1){
                     return 0;
                 }

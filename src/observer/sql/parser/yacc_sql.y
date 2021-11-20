@@ -660,7 +660,7 @@ F:
 	}
         |value{
         	Value *value = &CONTEXT->values[CONTEXT->value_length - 1];
-		relation_value_append(value);
+		    relation_value_append(value);
         }
 AGG:
     MAX LBRACE ID DOT ID RBRACE{

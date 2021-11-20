@@ -25,10 +25,12 @@ std::vector<RelAttr *> stack;
 extern "C" {
 #endif // __cplusplus
 void set_sub(){
+    assert(stack.size() >= 1);
     stack[stack.size()-1]->num=-1;
 }
 void e_e_t(CalOp op) {
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    assert(stack.size() >= 2);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = E;
     e->op = op;
     e->num=1;
@@ -41,7 +43,8 @@ void e_e_t(CalOp op) {
     stack.emplace_back(e);
 }
 void e_t() {
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    assert(stack.size() >= 1);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = E;
     e->first = stack[stack.size() - 1];
     e->second = nullptr;
@@ -53,7 +56,8 @@ void e_t() {
     stack.emplace_back(e);
 }
 void t_t_f(CalOp op) {
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    assert(stack.size() >= 2);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = T;
     e->op=op;
     e->first = stack[stack.size() - 2];
@@ -66,7 +70,8 @@ void t_t_f(CalOp op) {
     stack.emplace_back(e);
 }
 void t_f() {
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    assert(stack.size() >= 1);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = T;
     e->first = stack[stack.size() - 1];
     e->second = nullptr;
@@ -78,7 +83,8 @@ void t_f() {
     stack.emplace_back(e);
 }
 void f_e() {
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    assert(stack.size() >= 1);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = F;
     e->first = stack[stack.size() - 1];
     e->second = nullptr;
@@ -89,8 +95,9 @@ void f_e() {
     stack.pop_back();
     stack.emplace_back(e);
 }
-void f_id(Extype extype){
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+void f_id(Extype extype) {
+    assert(stack.size() >= 1);
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = extype;
     e->first = stack[stack.size() - 1];
     e->second = nullptr;
@@ -100,22 +107,25 @@ void f_id(Extype extype){
     stack.pop_back();
     stack.emplace_back(e);
 }
-void relation_value_append(Value *value){
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+void relation_value_append(Value *value) {
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = val;
     e->value=*value;
     e->first = nullptr;
     e->second = nullptr;
+    e->num=1;
     e->relation_name= nullptr;
     e->attribute_name= nullptr;
     e->op = None;
     stack.emplace_back(e);
 }
-void selects_append_attribute_plus(Selects *selects){
+void selects_append_attribute_plus(Selects *selects) {
+    assert(stack.size() >= 1);
     selects->attributes[selects->attr_num++] = *stack[stack.size()-1];
     stack.pop_back();
 }
 void relation_attr_get(RelAttr *attr){
+    assert(stack.size() >= 1);
     attr=stack[stack.size()-1];
     stack.pop_back();
 }
@@ -127,7 +137,7 @@ void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const
     }
     relation_attr->aggType = Null;
     relation_attr->attribute_name = strdup(attribute_name);
-    RelAttr *e = (RelAttr *) malloc(sizeof(RelAttr));
+    RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype=id;
     e->id=0;
     e->num=1;
@@ -156,12 +166,12 @@ void relation_attr_destroy(RelAttr *relation_attr) {
 
 void value_init_integer(Value *value, int v) {
     value->type = INTS;
-    value->data = malloc(sizeof(v));
+    value->data = calloc(1, sizeof(v));
     memcpy(value->data, &v, sizeof(v));
 }
 void value_init_float(Value *value, float v) {
     value->type = FLOATS;
-    value->data = malloc(sizeof(v));
+    value->data = calloc(1, sizeof(v));
     memcpy(value->data, &v, sizeof(v));
 }
 void value_init_string(Value *value, const char *v) {
@@ -442,7 +452,7 @@ void query_init(Query *query) {
 }
 
 Query *query_create() {
-    auto *query = (Query *) malloc(sizeof(Query));
+    auto *query = (Query *) calloc(1, sizeof(Query));
     if (query == nullptr) {
         LOG_ERROR("Failed to alloc memroy for query. size=%ld", sizeof(Query));
         return nullptr;
