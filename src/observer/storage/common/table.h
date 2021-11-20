@@ -92,10 +92,6 @@ public:
 
     RC rollback_delete(Trx *trx, const RID &rid);
 
-    const std::string &get_base_dir() {
-        return base_dir_;
-    }
-
 private:
     RC scan_record(Trx *trx, ConditionFilter *filter, int limit, void *context,
                    RC (*record_reader)(Record *record, void *context));
