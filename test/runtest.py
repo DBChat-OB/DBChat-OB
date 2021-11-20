@@ -64,6 +64,8 @@ class TestRunner:
 
     def run_test(self, callback: Callable[[str, str], Optional[bool]]):
         for i, testcase in enumerate(self._cases):
+            if testcase.startswith('//'):
+                continue
             self._logger.info(f'Run test {i + 1}.')
             response = self._client.execute(testcase)
             if callback(testcase, response) is False:

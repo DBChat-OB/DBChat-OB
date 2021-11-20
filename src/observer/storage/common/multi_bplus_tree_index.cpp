@@ -62,9 +62,9 @@ RC MultiBplusTreeIndex::insert_entry(const char *record, const RID *rid) {
     multi_index_meta_.fields(field_metas); // 得到多列索引所有的fields
     int fields_num = field_metas.size(); //计算拼接后的总长度(列
     //拼接key
-    char * pkey = (char *)malloc(fields_num*4);
+    char * pkey = (char *)malloc(fields_num*8);
     for(int i = 0;i<fields_num;i++) {
-        memcpy(pkey+i*4, record+field_metas.at(i).offset(),4);
+        memcpy(pkey+i*4, record+field_metas.at(i).offset()-4,8);
     }
     //将拼接好的key插入到树中
     RC rc = index_handler_.insert_entry(pkey,rid, false);
@@ -77,9 +77,9 @@ RC MultiBplusTreeIndex::delete_entry(const char *record, const RID *rid) {
     multi_index_meta_.fields(field_metas); // 得到多列索引所有的fields
     int fields_num = field_metas.size(); //计算拼接后的总长度（列）
     //拼接key
-    char * pkey = (char *)malloc(fields_num*4);
+    char * pkey = (char *)malloc(fields_num*8);
     for(int i = 0;i<fields_num;i++) {
-        memcpy(pkey+i*4, record+field_metas.at(i).offset(),4);
+        memcpy(pkey+i*4, record+field_metas.at(i).offset()-4,8);
     }
     //将拼接好的key传入到btree中删除
     RC rc = index_handler_.delete_entry(pkey,rid);
