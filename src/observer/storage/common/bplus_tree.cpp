@@ -212,7 +212,7 @@ int CompareKey(const char *pdata, const char *pkey,AttrType attr_type,int attr_l
       case MULTI_INDEX_FIELD :{
         s1 = pdata;
         s2 = pkey;
-        return strncmp(s1, s2, attr_length);
+        return memcmp(s1, s2, attr_length);
         break;
     }
     default:{
