@@ -203,7 +203,7 @@ void DefaultStorageStage::handle_event(StageEvent *event) {
       // TODO：实现多列索引
       if (create_index.attribute_count>1) {
           rc = handler_->create_multi_index(current_trx, current_db, create_index.relation_name,
-                                      create_index.index_name, create_index.attribute_names,create_index.attribute_count);
+                                      create_index.index_name, (const char**)create_index.attribute_names,create_index.attribute_count);
       }
       else {
           rc = handler_->create_index(current_trx, current_db, create_index.relation_name,
