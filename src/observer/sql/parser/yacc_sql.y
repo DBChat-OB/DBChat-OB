@@ -908,11 +908,11 @@ condition:
 			rval.data = uneval;
 
 			RelAttr right_attr;
-                        right_attr.value=rval;
-                        right_attr.extype=val;
+            right_attr.value=rval;
+            right_attr.extype=val;
 
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, left_attr, NULL, 0, &right_attr, &rval);
+			condition_init(&condition, CONTEXT->comp, 1, NULL, NULL, 0, &right_attr, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| E IN { CONTEXT->comp = CONTAINED_BY; } LBRACE subQuery RBRACE // t.x IN (SELECT y FROM b)
@@ -938,7 +938,7 @@ condition:
 			right_attr.value=rval;
 			right_attr.extype=val;
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, left_attr, NULL, 0, &right_attr, &rval);
+			condition_init(&condition, CONTEXT->comp, 1, NULL, NULL, 0, &right_attr, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| E NOT IN { CONTEXT->comp = NOT_CONTAINED_BY; } LBRACE subQuery RBRACE // x NOT IN (SELECT y FROM b)
@@ -964,7 +964,7 @@ condition:
 			right_attr.value=rval;
 			right_attr.extype=val;
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, left_attr, NULL, 0, &right_attr, &rval);
+			condition_init(&condition, CONTEXT->comp, 1, NULL, NULL, 0, &right_attr, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| E NOT IN { CONTEXT->comp = NOT_CONTAINED_BY; } LBRACE subQuery RBRACE // t.x NOT IN (SELECT y FROM b)
@@ -990,7 +990,7 @@ condition:
 			right_attr.value=rval;
 			right_attr.extype=val;
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, left_attr, NULL, 0, &right_attr, &rval);
+			condition_init(&condition, CONTEXT->comp, 1, NULL, NULL, 0, &right_attr, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| E comOp LBRACE subQuery RBRACE // x > (SELECT y FROM b)
@@ -1015,7 +1015,7 @@ condition:
 			right_attr.value=rval;
 			right_attr.extype=val;
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, left_attr, NULL, 0, &right_attr, &rval);
+			condition_init(&condition, CONTEXT->comp, 1, NULL, NULL, 0, &right_attr, &rval);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| LBRACE subQuery RBRACE comOp E // x > (SELECT y FROM b)
@@ -1041,7 +1041,7 @@ condition:
 			right_attr.extype=val;
 
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 0, &right_attr, &rval, 1, left_attr, NULL);
+			condition_init(&condition, CONTEXT->comp, 0, &right_attr, &rval, 1, NULL, NULL);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
 	| LBRACE subQuery RBRACE comOp E // t.x > (SELECT y FROM b)
@@ -1067,7 +1067,7 @@ condition:
 			right_attr.value=rval;
 			right_attr.extype=val;
 			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 0,&right_attr, &rval, 1, left_attr, NULL);
+			condition_init(&condition, CONTEXT->comp, 0,&right_attr, &rval, 1, NULL, NULL);
 			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
 		}
     ;

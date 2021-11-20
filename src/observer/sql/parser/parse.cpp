@@ -210,6 +210,9 @@ void condition_init(Condition *condition, CompOp comp,
         condition->left_attr = *stack[stack.size()-1];
         stack.pop_back();
     } else {
+        if(left_attr!= nullptr){
+            condition->left_attr=*left_attr;
+        }
         condition->left_value = *left_value;
     }
 
@@ -218,6 +221,9 @@ void condition_init(Condition *condition, CompOp comp,
         condition->right_attr = *stack[stack.size()-1];
         stack.pop_back();
     } else {
+        if(right_attr!= nullptr){
+            condition->right_attr=*right_attr;
+        }
         condition->right_value = *right_value;
     }
 }
