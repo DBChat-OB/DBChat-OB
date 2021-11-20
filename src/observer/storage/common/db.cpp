@@ -94,9 +94,22 @@ RC Db::drop_table(const char *table_name){
     Table * table= opened_tables_.find(table_name)->second;//TODO
     std::string heap_file_path(table->heap_manager->get_file_name());
     opened_tables_.erase(table_name);
+    std::vector<std::string> index_paths;
+    auto &table_meta = table->table_meta();
+    for (size_t i = 0; i < table_meta.index_num(); ++i) {
+        index_paths.emplace_back(index_data_file(table->get_base_dir().c_str(), table_name, table_meta.index((int)i)->name()));
+    }
+    for (size_t i = 0; i < table_meta.multi_index_num(); ++i) {
+        index_paths.emplace_back(index_data_file(table->get_base_dir().c_str(), table_name, table_meta.multi_index((int)i)->name()));
+    }
     delete table;//delete 会closefile;
     remove(data_file.c_str());//删除文件
-    remove(heap_file_path.c_str());
+    remove(heap_file_path.c_str()); // 删除TEXT堆
+    // 删除所有索引
+    for (const auto &item : index_paths) {
+        remove(item.c_str());
+    }
+
     return rc;
 }
 Table *Db::find_table(const char *table_name) const {
