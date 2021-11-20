@@ -836,11 +836,29 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
     LOG_ERROR("Failed to alloc memory for key. size=%d", file_header_.key_length);
     return RC::NOMEM;
   }
-    if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
+    /*if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
             memcpy(key, &null_key, 4);
     }
     else {
             memcpy(key, pkey, file_header_.attr_length);
+    }*/
+    if(file_header_.attr_type==MULTI_INDEX_FIELD) {
+        for(int offset = 0;offset<file_header_.attr_length;offset += 4 ) {
+            if((*(unsigned *) pkey+offset*2) & 0x00000001 == 0x00000001){
+                memcpy(key+offset, &null_key,4);
+            }
+            else{
+                memcpy(key+offset, pkey+offset*2, 4);
+            }
+        }
+    }
+    else {
+        if(((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
+            memcpy(key, &null_key, 4);
+        }
+        else {
+            memcpy(key, pkey, file_header_.attr_length);
+        }
     }
   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
   rc= find_leaf(key, &leaf_page);
@@ -1485,11 +1503,29 @@ RC BplusTreeHandler::delete_entry(const char *data, const RID *rid) {
     return RC::NOMEM;
   }
   unsigned int null_key = 0;
-    if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (data - 4)) & 0x00000001 == 0x00000001)) {
+    /*if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (data - 4)) & 0x00000001 == 0x00000001)) {
             memcpy(pkey, &null_key, 4);
     } else{
             memcpy(pkey, data, file_header_.attr_length);
+        }*/
+    if(file_header_.attr_type==MULTI_INDEX_FIELD) {
+        for(int offset = 0;offset<file_header_.attr_length;offset += 4 ) {
+            if((*(unsigned *) pkey+offset*2) & 0x00000001 == 0x00000001){
+                memcpy(pkey+offset, &null_key,4);
+            }
+            else{
+                memcpy(pkey+offset, data+offset*2, 4);
+            }
         }
+    }
+    else {
+        if(((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
+            memcpy(pkey, &null_key, 4);
+        }
+        else {
+            memcpy(pkey, data, file_header_.attr_length);
+        }
+    }
   memcpy(pkey + file_header_.attr_length, rid ,sizeof(*rid));
 
   rc=find_leaf(pkey,&leaf_page);
