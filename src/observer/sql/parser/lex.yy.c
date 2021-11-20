@@ -1,5 +1,5 @@
 
-#line 2 "lex.yy.c"
+#line 3 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -603,10 +603,10 @@ extern double atof();
 char * position = "";
 
 #define RETURN_TOKEN(token) return token
-#line 606 "lex.yy.c"
+#line 607 "lex.yy.c"
 /* Prevent the need for linking with -lfl */
 
-#line 609 "lex.yy.c"
+#line 610 "lex.yy.c"
 
 #define INITIAL 0
 #define STR 1
@@ -884,7 +884,7 @@ YY_DECL
 #line 28 "lex_sql.l"
 
 
-#line 887 "lex.yy.c"
+#line 888 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1297,7 +1297,7 @@ YY_RULE_SETUP
 #line 103 "lex_sql.l"
 ECHO;
 	YY_BREAK
-#line 1300 "lex.yy.c"
+#line 1301 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(STR):
 	yyterminate();
