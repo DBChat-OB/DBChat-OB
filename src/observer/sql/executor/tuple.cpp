@@ -33,9 +33,9 @@ struct filter_map {
  * @return
  */
 double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std::shared_ptr<TupleValue>& tupleValue){
-    double left;
-    double right;
-    double value;
+    int left;
+    int right;
+    int value;
     switch (attr.extype) {
         case E:{
             if(attr.second== nullptr){
