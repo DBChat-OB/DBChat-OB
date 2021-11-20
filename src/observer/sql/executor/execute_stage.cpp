@@ -839,7 +839,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
             cal_agg(join_tupleset, ret, std::get<0>(groups.at(i)), std::get<1>(groups.at(i)));
         }
     } else {
-        //没有聚合运算直接复制过去
+
         ret.set_schema(out_schema);
         //将连接结果映射到输出结果 TODO最后映射比较好
         for (int i = 0; i < join_tupleset.size(); i++) {
