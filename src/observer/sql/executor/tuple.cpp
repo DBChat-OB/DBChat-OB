@@ -391,7 +391,7 @@ Tuple::Tuple(AttrType type_, void *data) {
             case UNEVALUATED:
             case ATTR_TABLE:
             default:
-                LOG_ERROR("Programming error: Trying to add value of unsupported type into Tuple.");
+                LOG_ERROR("Programming error: Trying to add value of unsupported type (%u) into Tuple.", type_);
                 assert(0);
                 break;
     }

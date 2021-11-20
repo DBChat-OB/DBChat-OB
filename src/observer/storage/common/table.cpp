@@ -660,7 +660,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
         if (is_simple) {
             RelAttr left_attr = lefts[0];
             RelAttr right_attr = rights[0];
-            if ((left_attr.extype == val && condition.right_attr.extype == val) || // 两边都是值
+            if ((left_attr.extype == val && right_attr.extype == val) || // 两边都是值
             (left_attr.extype == id && right_attr.extype == val)||  // 左边是属性右边是值
             (left_attr.extype == val && right_attr.extype == id)  ||  // 左边是值，右边是属性名
             (left_attr.extype == id && right_attr.extype == id )
@@ -669,7 +669,7 @@ RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value
                 DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
                 Condition condition1;
                 condition1.comp = condition.comp;
-                if ((left_attr.extype == val && condition.right_attr.extype == val)) {
+                if ((left_attr.extype == val && right_attr.extype == val)) {
                     condition1.right_is_attr = 0;
                     condition1.left_is_attr = 0;
                     condition1.right_value = right_attr.value;
