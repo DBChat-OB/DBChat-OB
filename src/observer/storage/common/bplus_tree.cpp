@@ -836,12 +836,11 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid, bool unique_
     LOG_ERROR("Failed to alloc memory for key. size=%d", file_header_.key_length);
     return RC::NOMEM;
   }
-    if(!file_header_.attr_type==MULTI_INDEX_FIELD) {
-        if (((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
+    if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (pkey - 4)) & 0x00000001 == 0x00000001)) {
             memcpy(key, &null_key, 4);
-        } else {
+    }
+    else {
             memcpy(key, pkey, file_header_.attr_length);
-        }
     }
   memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
   rc= find_leaf(key, &leaf_page);
@@ -1486,13 +1485,11 @@ RC BplusTreeHandler::delete_entry(const char *data, const RID *rid) {
     return RC::NOMEM;
   }
   unsigned int null_key = 0;
-    if(!file_header_.attr_type==MULTI_INDEX_FIELD) {
-        if (((*(unsigned *) (data - 4)) & 0x00000001 == 0x00000001)) {
+    if(!file_header_.attr_type==MULTI_INDEX_FIELD&&((*(unsigned *) (data - 4)) & 0x00000001 == 0x00000001)) {
             memcpy(pkey, &null_key, 4);
-        } else {
+    } else{
             memcpy(pkey, data, file_header_.attr_length);
         }
-    }
   memcpy(pkey + file_header_.attr_length, rid ,sizeof(*rid));
 
   rc=find_leaf(pkey,&leaf_page);
