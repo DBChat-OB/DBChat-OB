@@ -53,6 +53,15 @@ AttrType attr_type_from_string(const char *s) {
 
 FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), visible_(false) {
 }
+//拷贝构造函数
+FieldMeta::FieldMeta(const FieldMeta &other) {
+    this->attr_len_ = other.len();
+    this->attr_type_ = other.type();
+    this->visible_ = other.visible();
+    this->nullable_ = other.nullable();
+    this->attr_offset_ = other.offset();
+    this->name_ = strdup(other.name_.c_str());
+}
 
 RC FieldMeta::init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, bool nullable) {
   if (nullptr == name || '\0' == name[0]) {

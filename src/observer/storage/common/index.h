@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/index_meta.h"
 #include "storage/common/field_meta.h"
 #include "storage/common/record_manager.h"
+#include "storage/common/multi_index_meta.h"
 
 class IndexDataOperator {
 public:
@@ -42,6 +43,14 @@ public:
     return index_meta_;
   }
 
+  const bool is_multi() {
+      return is_multi_index_meta_;
+  }
+
+  const MultiIndexMeta &multi_index_meta() const {
+      return multi_index_meta_;
+  }
+
   virtual RC insert_entry(const char *record, const RID *rid) = 0;
   virtual RC delete_entry(const char *record, const RID *rid) = 0;
 
@@ -51,10 +60,14 @@ public:
 
 protected:
   RC init(const IndexMeta &index_meta, const FieldMeta &field_meta);
+  RC init(const MultiIndexMeta &multi_index_meta);
 
 protected:
   IndexMeta   index_meta_;
-  FieldMeta   field_meta_;    /// 当前实现仅考虑一个字段的索引
+  FieldMeta   field_meta_;/// 当前实现仅考虑一个字段的索引
+  MultiIndexMeta multi_index_meta_; // 多列索引的元数据
+  bool is_multi_index_meta_ = false; //用于区分子类是多列索引还是单列索引
+
 };
 
 class IndexScanner {

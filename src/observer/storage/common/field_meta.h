@@ -29,6 +29,8 @@ class Value;
 class FieldMeta {
 public:
   FieldMeta();
+  //拷贝构造函数
+  FieldMeta(const FieldMeta &other);
   ~FieldMeta() = default;
 
   RC init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible, bool nullable);

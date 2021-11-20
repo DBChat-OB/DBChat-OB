@@ -45,7 +45,8 @@ typedef enum {
 typedef enum {
     UNDEFINED, CHARS, INTS, FLOATS, DATE, TEXTS,
     UNEVALUATED, // 未被求值的一个抽象值或值表达式，如子SQL语句
-    ATTR_TABLE // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
+    ATTR_TABLE, // 行优先的二维线性表，是由有限个值构成的有序线性数据结构。SQL SELECT从句的执行结果就是一个TABLE，只有一列的TABLE退化为列表
+    MULTI_INDEX_FIELD //用于在B树中表示这个key是多列复合的
 } AttrType;
 
 //属性值
@@ -173,10 +174,11 @@ typedef struct {
 
 // struct of create_index
 typedef struct {
-    char *index_name;      // Index name
-    char *relation_name;   // Relation name
-    char *attribute_name;  // Attribute name
-    bool unique_attr;
+    char *index_name; // 索引名
+    char *relation_name; // 表名
+    unsigned int attribute_count; // 包含的属性个数
+    char *attribute_names[MAX_NUM]; // 属性名
+    bool unique_attr; // 是否为UNIQUE索引
 } CreateIndex;
 
 // struct of  drop_index
@@ -289,9 +291,10 @@ void create_table_destroy(CreateTable *create_table);
 void drop_table_init(DropTable *drop_table, const char *relation_name);
 void drop_table_destroy(DropTable *drop_table);
 
-void create_index_init(
-        CreateIndex *create_index, const char *index_name, const char *relation_name, const char *attr_name, bool unique_attr);
-void create_index_destroy(CreateIndex *create_index);
+void create_index_init(CreateIndex *obj, const char *index_name,
+                       const char *relation_name, const char *attr_name, bool unique_attr);
+void create_index_add_attribute(CreateIndex *obj, const char *attr_name);
+void create_index_destroy(CreateIndex *obj);
 
 void drop_index_init(DropIndex *drop_index, const char *index_name);
 void drop_index_destroy(DropIndex *drop_index);

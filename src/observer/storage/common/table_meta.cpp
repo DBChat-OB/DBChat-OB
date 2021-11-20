@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details. */
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
 static const Json::StaticString FIELD_INDEXES("indexes");
-
+static const Json::StaticString FIELD_MULTI_INDEXES("multi_indexes");
 std::vector<FieldMeta> TableMeta::sys_fields_;
 
 TableMeta::TableMeta(const TableMeta &other) :
@@ -102,6 +102,10 @@ RC TableMeta::add_index(const IndexMeta &index) {
   return RC::SUCCESS;
 }
 
+RC TableMeta::add_multi_index(const MultiIndexMeta &multi_index) {
+    multi_indexes_.push_back(multi_index);
+    return RC::SUCCESS;
+}
 const char *TableMeta::name() const {
   return name_.c_str();
 }
@@ -150,6 +154,14 @@ const IndexMeta * TableMeta::index(const char *name) const {
   return nullptr;
 }
 
+const MultiIndexMeta * TableMeta::multi_index(const char *name) const {
+    for (const MultiIndexMeta &multi_index_meta: multi_indexes_) {
+        if (0 == strcmp(multi_index_meta.name(),name)){
+            return &multi_index_meta;
+        }
+    }
+    return nullptr;
+}
 const IndexMeta * TableMeta::find_index_by_field(const char *field) const {
   for (const IndexMeta &index : indexes_) {
     if (0 == strcmp(index.field(), field)) {
@@ -159,12 +171,31 @@ const IndexMeta * TableMeta::find_index_by_field(const char *field) const {
   return nullptr;
 }
 
+const MultiIndexMeta * TableMeta::find_multi_index_by_field(const char *field) const {
+    for (const MultiIndexMeta &multi_index : multi_indexes_) {
+        std::vector<FieldMeta> field_metas;
+        multi_index.fields(field_metas);
+        if (0 == strcmp(field_metas.at(0).name(), field)) {
+            return &multi_index;
+        }
+    }
+    return nullptr;
+}
+
 const IndexMeta * TableMeta::index(int i ) const {
   return &indexes_[i];
 }
 
+const MultiIndexMeta * TableMeta::multi_index(int i) const {
+    return &multi_indexes_[i];
+}
+
 int TableMeta::index_num() const {
   return indexes_.size();
+}
+
+int TableMeta::multi_index_num() const {
+    return multi_indexes_.size();
 }
 
 int TableMeta::record_size() const {
@@ -192,7 +223,13 @@ int TableMeta::serialize(std::ostream &ss) const {
     indexes_value.append(std::move(index_value));
   }
   table_value[FIELD_INDEXES] = std::move(indexes_value);
-
+  Json::Value multi_indexes_value;
+    for (const auto &index : multi_indexes_) {
+        Json::Value index_value;
+        index.to_json(index_value);
+        multi_indexes_value.append(std::move(index_value));
+    }
+    table_value[FIELD_MULTI_INDEXES] = std::move(multi_indexes_value);
   Json::StreamWriterBuilder builder;
   Json::StreamWriter *writer = builder.newStreamWriter();
 
@@ -274,7 +311,25 @@ int TableMeta::deserialize(std::istream &is) {
     }
     indexes_.swap(indexes);
   }
-
+    const Json::Value &multi_indexes_value = table_value[FIELD_MULTI_INDEXES];
+    if (!multi_indexes_value.empty()) {
+        if (!multi_indexes_value.isArray()) {
+            LOG_ERROR("Invalid table meta. multi_indexes is not array, json value=%s", fields_value.toStyledString().c_str());
+            return -1;
+        }
+        const int index_num = multi_indexes_value.size();
+        std::vector<MultiIndexMeta> multi_indexes(index_num);
+        for (int i = 0; i < index_num; i++) {
+            MultiIndexMeta &multi_index = multi_indexes[i];
+            const Json::Value &index_value = multi_indexes_value[i];
+            rc = MultiIndexMeta::from_json(*this, index_value, multi_index);
+            if (rc != RC::SUCCESS) {
+                LOG_ERROR("Failed to deserialize table meta. table name=%s", table_name.c_str());
+                return -1;
+            }
+        }
+        multi_indexes_.swap(multi_indexes);
+    }
   return (int)(is.tellg() - old_pos);
 }
 
@@ -298,5 +353,12 @@ void TableMeta::desc(std::ostream &os) const {
     index.desc(os);
     os << std::endl;
   }
+
+  for (const auto &multi_index:multi_indexes_) {
+      os<< '\t';
+      multi_index.desc(os);
+      os<<std::endl;
+  }
+
   os << ')' << std::endl;
 }

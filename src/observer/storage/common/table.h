@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "storage/common/table_meta.h"
 #include "storage/heap/heapmanager.h"
+#include "storage/common/multi_bplus_tree_index.h"
 
 class DiskBufferPool;
 
@@ -73,6 +74,8 @@ public:
 
     RC create_index(Trx *trx, const char *index_name, const char *attribute_name, bool unique_attr);
 
+    RC create_multi_index(Trx *trx, const char *index_name, const char **attribute_names, size_t attribute_count);
+
 public:
     const char *name() const;
 
@@ -122,6 +125,7 @@ private:
 
 private:
     Index *find_index(const char *index_name) const;
+    MultiBplusTreeIndex *find_multi_index(const MultiIndexMeta  *) const;
 
 private:
     std::string base_dir_;
