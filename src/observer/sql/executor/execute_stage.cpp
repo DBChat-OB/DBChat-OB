@@ -659,6 +659,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
     //构造最后的输出schema与各表查询的schema,以及构建表间的比较
     //应该构造新的filter来减少元组
     if ((rc = create_out_schema(db, selects, out_schema, schemas, t_t_conditions, filter_num)) != RC::SUCCESS) {
+        const char *failure_ptr = "FAILURE\n";//这种地方复制有点冗余
         return rc;
     }
     // 把所有的表和只跟这张表关联的condition都拿出来，生成最底层的select 执行节点
@@ -672,6 +673,7 @@ RC ExecuteStage::sub_select(Selects &selects, TupleSet &ret, Trx *trx) {
             for (SelectExeNode *&tmp_node: select_nodes) {
                 delete tmp_node;
             }
+            const char *failure_ptr = "FAILURE\n";
             return rc;
         }
         select_nodes.push_back(select_node);
