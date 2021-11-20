@@ -242,7 +242,7 @@ void e_t();
 void t_t_f(CalOp op);
 void t_f();
 void f_e();
-void relation_value_append(Value *value);
+void relation_value_append(Value *value,int num);
 void selects_append_attribute_plus(Selects *selects);
 void relation_attr_get(RelAttr *attr);
 void condition_init_ex(Condition* condition,CompOp op);
@@ -250,8 +250,8 @@ void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const
 void relation_agg_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name,AggType aggType);
 void relation_attr_destroy(RelAttr *relation_attr);
 
-void value_init_integer(Value *value, int v);
-void value_init_float(Value *value, float v);
+void value_init_integer(Value *value, int v,int signal);
+void value_init_float(Value *value, float v,int signal);
 void value_init_string(Value *value, const char *v);
 void value_init_null(Value *value);
 void value_destroy(Value *value);

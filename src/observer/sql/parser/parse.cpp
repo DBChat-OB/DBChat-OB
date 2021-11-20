@@ -107,13 +107,13 @@ void f_id(Extype extype) {
     stack.pop_back();
     stack.emplace_back(e);
 }
-void relation_value_append(Value *value) {
+void relation_value_append(Value *value,int num) {
     RelAttr *e = (RelAttr *) calloc(1, sizeof(RelAttr));
     e->extype = val;
     e->value=*value;
     e->first = nullptr;
     e->second = nullptr;
-    e->num=1;
+    e->num=num;
     e->relation_name= nullptr;
     e->attribute_name= nullptr;
     e->op = None;
@@ -164,13 +164,15 @@ void relation_attr_destroy(RelAttr *relation_attr) {
     relation_attr->attribute_name = nullptr;
 }
 
-void value_init_integer(Value *value, int v) {
+void value_init_integer(Value *value, int v,int signal) {
     value->type = INTS;
+    v=signal*v;
     value->data = calloc(1, sizeof(v));
     memcpy(value->data, &v, sizeof(v));
 }
-void value_init_float(Value *value, float v) {
+void value_init_float(Value *value, float v,int signal) {
     value->type = FLOATS;
+    v=signal*v;
     value->data = calloc(1, sizeof(v));
     memcpy(value->data, &v, sizeof(v));
 }

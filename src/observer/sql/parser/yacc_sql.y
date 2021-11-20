@@ -406,10 +406,16 @@ value_list:
     ;
 value:
     NUMBER{	
-  		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $1,1);
 		}
     |FLOAT{
-  		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $1,1);
+		}
+	|SUB NUMBER{	
+  		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $2, -1);
+		}
+    |SUB FLOAT{
+  		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $2,-1);
 		}
     |SSS {
 			$1 = substr($1,1,strlen($1)-2);
@@ -658,10 +664,10 @@ F:
 	|ATT{
 		//set_sub();
 	}
-        |value{
+    |value{
         	Value *value = &CONTEXT->values[CONTEXT->value_length - 1];
-		    relation_value_append(value);
-        }
+		    relation_value_append(value,1);
+    }
 AGG:
     MAX LBRACE ID DOT ID RBRACE{
 	RelAttr attr;

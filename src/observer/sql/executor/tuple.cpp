@@ -127,7 +127,7 @@ bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* sche
         Condition  condition=conditions[i];
         std::shared_ptr<TupleValue> left_value;
         std::shared_ptr<TupleValue> right_value;
-        int ret;
+        double ret;
         double left= getvalue(tuple,schema,condition.left_attr,&success1,left_value);
         double right= getvalue(tuple,schema,condition.right_attr,&success2,right_value);
         if(success1==-1||success2==-1){
@@ -135,9 +135,15 @@ bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* sche
         }
         if(success1||success2){//是表达式
             ret=left-right;
+            if(ret>0){
+                ret=1;
+            } else if(ret<0){
+                ret =-1;
+            }
         } else{
             ret=left_value->compare(*right_value);
         }
+
         CompOp op=condition.comp;
         switch (op) {
             case CompOp::EQUAL_TO: {
@@ -153,7 +159,7 @@ bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* sche
                 break;
             }
             case CompOp::GREAT_THAN: {
-                if (ret !=-1) {
+                if (ret !=1) {
                     return false;
                 }
                 break;

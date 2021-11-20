@@ -1022,7 +1022,7 @@ RC create_selection_executor(Trx *trx, const Selects &selects, const char *db, c
                     ) {
                 DefaultConditionFilter *condition_filter = new DefaultConditionFilter();
                 Condition condition1;
-                condition1.comp = condition.comp;
+                condition1.comp = condition.comp;//
                 if ((left_attr.extype == val && right_attr.extype == val)) {
                     condition1.right_is_attr = 0;
                     condition1.left_is_attr = 0;
