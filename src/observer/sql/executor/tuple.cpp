@@ -11,7 +11,7 @@ See the Mulan PSL v2 for more details. */
 //
 // Created by Wangyunlai on 2021/5/14.
 //
-
+#include <float.h>
 #include <sstream>
 #include "sql/executor/tuple.h"
 #include "storage/common/table.h"
@@ -42,11 +42,11 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
                 value=getvalue(tuple,schema,*attr.first,success,tupleValue);
             } else{
                 left=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
+                if(*success!=0&&*success!=1){
                     return 0;
                 }
                 right=getvalue(tuple,schema,*attr.second,success,tupleValue);
-                if(*success==-1){
+                if(*success!=0&&*success!=1){
                     return 0;
                 }
                 *success=1;
@@ -63,17 +63,20 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
                 value=getvalue(tuple,schema,*attr.first,success,tupleValue);
             } else{
                 left=getvalue(tuple,schema,*attr.first,success,tupleValue);
-                if(*success==-1){
+                if(*success!=0&&*success!=1){
                     return 0;
                 }
                 right=getvalue(tuple,schema,*attr.second,success,tupleValue);
-                if(*success==-1){
+                if(*success!=0&&*success!=1){
                     return 0;
                 }
                 *success=1;
                 if(attr.op==Mul){
                     value= left*right;
                 } else{
+                    if(right==0){
+                        *success=-2;
+                    }
                     value= left/right;
                 }
             }
@@ -81,7 +84,7 @@ double getvalue(Tuple *tuple,TupleSchema *schema,RelAttr &attr,int *success,std:
         }
         case F:{
             value= getvalue(tuple,schema,*attr.first,success,tupleValue);
-            if(*success==-1){
+            if(*success!=0&&*success!=1){
                 return 0;
             }
             *success=1;
@@ -132,6 +135,9 @@ bool do_filters(Tuple *tuple,std::vector<Condition> conditions,TupleSchema* sche
         double right= getvalue(tuple,schema,condition.right_attr,&success2,right_value);
         if(success1==-1||success2==-1){
             continue;
+        }
+        if(success1==-2||success2==-2){//nan值
+            return false;
         }
         if(success1||success2){//是表达式
             ret=left-right;

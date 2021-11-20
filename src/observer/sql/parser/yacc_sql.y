@@ -656,6 +656,7 @@ F:
 	}
 	|
 	SUB LBRACE E RBRACE{
+			f_e()
 			set_sub();
 	}
 	|SUB ATT{
